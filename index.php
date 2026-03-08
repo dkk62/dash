@@ -17,7 +17,7 @@ if (!is_dir(UPLOAD_PATH)) {
 $action = $_GET['action'] ?? 'dashboard';
 
 // Public routes
-$publicActions = ['login', 'do_login'];
+$publicActions = ['login', 'do_login', 'forgot_password', 'do_forgot_password', 'reset_password', 'do_reset_password'];
 
 if (!in_array($action, $publicActions) && !isLoggedIn()) {
     redirect('?action=login');
@@ -32,6 +32,24 @@ switch ($action) {
         break;
     case 'logout':
         require_once BASE_PATH . '/controllers/AuthController.php';
+        break;
+
+    // Password reset (public)
+    case 'forgot_password':
+    case 'do_forgot_password':
+    case 'reset_password':
+    case 'do_reset_password':
+        require_once BASE_PATH . '/models/User.php';
+        require_once BASE_PATH . '/controllers/PasswordResetController.php';
+        break;
+
+    // Users
+    case 'users':
+    case 'user_save':
+    case 'user_edit':
+    case 'user_delete':
+        requireRole(['admin']);
+        require_once BASE_PATH . '/controllers/UserController.php';
         break;
 
     // Dashboard

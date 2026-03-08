@@ -32,6 +32,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="/dash/?action=users">
+                        <i class="bi bi-person-gear"></i> Users
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="/dash/?action=logs">
                         <i class="bi bi-journal-text"></i> Logs
                     </a>
