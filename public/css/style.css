@@ -1,0 +1,86 @@
+/* Work Progress System - Custom Styles */
+
+/* LED indicators */
+.led {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+.led-grey {
+    background-color: #adb5bd;
+    border-color: #6c757d;
+    box-shadow: 0 0 3px #999;
+}
+
+.led-green {
+    background-color: #28a745;
+    border-color: #1e7e34;
+    box-shadow: 0 0 6px rgba(40, 167, 69, 0.6);
+}
+
+.led-orange {
+    background-color: #fd7e14;
+    border-color: #e06c00;
+    box-shadow: 0 0 6px rgba(253, 126, 20, 0.6);
+}
+
+/* Dashboard table */
+.dashboard-table th {
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+
+.dashboard-table td {
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+.dashboard-table .upload-form {
+    margin: 0;
+}
+
+/* Locked row styling */
+.locked-row {
+    opacity: 0.75;
+}
+
+.locked-row .upload-btn {
+    display: none !important;
+}
+
+/* Upload button styling */
+.upload-btn {
+    padding: 2px 6px;
+    font-size: 0.8rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .dashboard-table {
+        font-size: 0.8rem;
+    }
+    .led {
+        width: 12px;
+        height: 12px;
+    }
+}
+
+/* Badge refinements */
+.badge {
+    font-size: 0.75rem;
+}
+
+/* Table row hover for period groups */
+.dashboard-table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* Navbar brand icon */
+.navbar-brand i {
+    font-size: 1.2rem;
+}

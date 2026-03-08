@@ -1,0 +1,17 @@
+# Uploaded files
+uploads/
+
+# Utility/setup scripts (not needed in production)
+seed.php
+setup.php
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+.vscode/
+
+# PHP error logs
+*.log
