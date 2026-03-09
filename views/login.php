@@ -25,6 +25,10 @@
                     </h3>
                     <form method="POST" action="/dash/?action=do_login">
                         <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+                        <div style="position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden;" aria-hidden="true">
+                            <label for="website">Website</label>
+                            <input id="website" type="text" name="website" tabindex="-1" autocomplete="off">
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">Email</label>
                             <input type="email" name="email" class="form-control" required autofocus>

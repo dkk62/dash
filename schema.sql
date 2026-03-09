@@ -152,3 +152,19 @@ CREATE TABLE IF NOT EXISTS `logs` (
   CONSTRAINT `logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `logs_ibfk_2` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- Table: login_attempts
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `login_attempts` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `identifier` VARCHAR(191) NOT NULL,
+  `ip_address` VARCHAR(45) NOT NULL,
+  `attempt_count` INT(11) NOT NULL DEFAULT 0,
+  `first_attempt_at` DATETIME NOT NULL,
+  `last_attempt_at` DATETIME NOT NULL,
+  `locked_until` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_identifier_ip` (`identifier`,`ip_address`),
+  KEY `idx_locked_until` (`locked_until`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
