@@ -77,6 +77,7 @@ switch ($action) {
     // Periods
     case 'periods':
     case 'period_save':
+    case 'period_generate':
     case 'period_delete':
         requireRole(['admin']);
         require_once BASE_PATH . '/controllers/PeriodController.php';
@@ -98,6 +99,7 @@ switch ($action) {
 
     // Lock
     case 'lock':
+    case 'unlock':
         requireRole(['admin']);
         require_once BASE_PATH . '/controllers/LockController.php';
         break;

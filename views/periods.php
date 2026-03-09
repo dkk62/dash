@@ -50,19 +50,62 @@ ob_start();
     </div>
 
     <div class="col-md-4">
-        <h5>Add Period</h5>
-        <form method="POST" action="/dash/?action=period_save">
-            <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
-            <input type="hidden" name="client_id" value="<?= $clientId ?>">
-            <div class="mb-3">
-                <label class="form-label">Period Label *</label>
-                <input type="text" name="period_label" class="form-control" required
-                       placeholder="e.g., Jan 2026 or FY 2025-26">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Fiscal Year (Standardized)</strong></div>
+            <div class="card-body">
+                <form method="POST" action="/dash/?action=period_generate">
+                    <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+                    <input type="hidden" name="client_id" value="<?= $clientId ?>">
+                    <input type="hidden" name="mode" value="fiscal">
+                    <div class="mb-3">
+                        <label class="form-label">FY Label</label>
+                        <select name="fy_label" class="form-select" required>
+                            <?php foreach (['FY 24', 'FY 25', 'FY 26', 'FY 27', 'FY 28'] as $fy): ?>
+                                <option value="<?= $fy ?>"><?= $fy ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-lg"></i> Add FY Period
+                    </button>
+                </form>
             </div>
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-plus-lg"></i> Add Period
-            </button>
-        </form>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Monthly Auto-Create</strong></div>
+            <div class="card-body">
+                <form method="POST" action="/dash/?action=period_generate">
+                    <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+                    <input type="hidden" name="client_id" value="<?= $clientId ?>">
+                    <input type="hidden" name="mode" value="monthly_range">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">Start Year</label>
+                            <select name="start_year" class="form-select" required>
+                                <?php for ($y = 2026; $y <= 2030; $y++): ?>
+                                    <option value="<?= $y ?>" <?= $y === 2026 ? 'selected' : '' ?>><?= $y ?></option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">End Year</label>
+                            <select name="end_year" class="form-select" required>
+                                <?php for ($y = 2026; $y <= 2030; $y++): ?>
+                                    <option value="<?= $y ?>" <?= $y === 2030 ? 'selected' : '' ?>><?= $y ?></option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-text mt-2">Creates monthly periods in format <code>Jan 26</code> ... <code>Dec 30</code>.</div>
+                    <button type="submit" class="btn btn-success w-100 mt-3"
+                            onclick="return confirm('Auto-create monthly periods for selected year range?')">
+                        <i class="bi bi-calendar2-plus"></i> Generate Monthly Periods
+                    </button>
+                </form>
+            </div>
+        </div>
+
     </div>
 </div>
 

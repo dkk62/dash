@@ -54,7 +54,13 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mail->SMTPAuth   = true;
                 $mail->Username   = SMTP_USER;
                 $mail->Password   = SMTP_PASS;
-                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                if (SMTP_SECURE === 'ssl') {
+                    $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+                } elseif (SMTP_SECURE === 'tls') {
+                    $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                } else {
+                    $mail->SMTPSecure = '';
+                }
                 $mail->Port       = SMTP_PORT;
                 $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
                 $mail->addAddress($email, $user['name']);

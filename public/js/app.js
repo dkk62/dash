@@ -1,7 +1,7 @@
 // Work Progress System - Client JS
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Upload buttons: click triggers hidden file input, then auto-submit
+    // Upload buttons: click triggers hidden multi-file input, then auto-submit
     document.querySelectorAll('.upload-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var form = this.closest('.upload-form');

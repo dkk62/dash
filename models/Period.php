@@ -25,9 +25,10 @@ class Period {
 
             // Auto-create stage1_status for each active account
             $accounts = Account::byClient($clientId);
-            $ins = $db->prepare("INSERT INTO stage1_status (period_id, account_id) VALUES (?,?)");
+            $ins = $db->prepare("INSERT INTO stage1_status (period_id, account_id, status) VALUES (?,?,?)");
             foreach ($accounts as $acc) {
-                $ins->execute([$periodId, $acc['id']]);
+                $status = (($acc['bank_feed_mode'] ?? 'manual') === 'automatic') ? 'orange' : 'grey';
+                $ins->execute([$periodId, $acc['id'], $status]);
             }
 
             // Auto-create stage_status for stages 2-4
@@ -47,6 +48,12 @@ class Period {
     public static function lock(int $id): void {
         $db = getDB();
         $stmt = $db->prepare("UPDATE periods SET is_locked = 1 WHERE id = ?");
+        $stmt->execute([$id]);
+    }
+
+    public static function unlock(int $id): void {
+        $db = getDB();
+        $stmt = $db->prepare("UPDATE periods SET is_locked = 0 WHERE id = ?");
         $stmt->execute([$id]);
     }
 

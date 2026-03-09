@@ -8,6 +8,7 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $email     = trim($_POST['email'] ?? '');
     $phone     = trim($_POST['phone'] ?? '');
     $cycleType = $_POST['cycle_type'] ?? 'monthly';
+    $password  = trim($_POST['password'] ?? '');
 
     if ($name === '' || $email === '') {
         setFlash('danger', 'Name and email are required.');
@@ -19,10 +20,12 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($id > 0) {
-        Client::update($id, $name, $email, $phone, $cycleType);
+        // Update existing - password is optional
+        Client::update($id, $name, $email, $phone, $cycleType, $password ?: null);
         setFlash('success', 'Client updated.');
     } else {
-        Client::create($name, $email, $phone, $cycleType);
+        // Create new - password is optional
+        Client::create($name, $email, $phone, $cycleType, $password ?: null);
         setFlash('success', 'Client created.');
     }
     redirect('?action=clients');

@@ -42,7 +42,7 @@ function e(string $str): string {
 function sanitizeFilename(string $name): string {
     $name = basename($name);
     $name = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $name);
-    return time() . '_' . $name;
+    return time() . '_' . bin2hex(random_bytes(3)) . '_' . $name;
 }
 
 function getClientIp(): string {
@@ -110,29 +110,105 @@ function ensureDir(string $dir): void {
 /**
  * Insert a log record
  */
-function logAction(string $action, int $userId, ?int $periodId = null, ?string $stageName = null, ?int $accountId = null, ?array $metadata = null): void {
+function logAction(string $action, ?int $userId = null, ?int $periodId = null, ?string $stageName = null, ?int $accountId = null, ?int $clientId = null, ?array $metadata = null): void {
     $db = getDB();
-    $stmt = $db->prepare("INSERT INTO logs (period_id, stage_name, account_id, action, user_id, ip_address, metadata) VALUES (?,?,?,?,?,?,?)");
+    $stmt = $db->prepare("INSERT INTO logs (period_id, stage_name, account_id, action, user_id, client_id, ip_address, metadata) VALUES (?,?,?,?,?,?,?,?)");
     $stmt->execute([
         $periodId,
         $stageName,
         $accountId,
         $action,
         $userId,
+        $clientId,
         getClientIp(),
         $metadata ? json_encode($metadata) : null,
     ]);
 }
 
 /**
- * Determine which stages can be uploaded/downloaded by which roles
+ * Determine which roles can UPLOAD files to each stage
  */
-function stageRoles(string $stage): array {
+function stageUploadRoles(string $stage): array {
     return match ($stage) {
-        'stage1' => ['processor0', 'admin'],
+        'stage1' => ['processor0', 'admin', 'client'],
         'stage2' => ['processor1', 'admin'],
         'stage3' => ['processor0', 'admin'],
         'stage4' => ['processor1', 'admin'],
         default  => ['admin'],
     };
+}
+
+/**
+ * Determine which roles can DOWNLOAD files from each stage
+ */
+function stageDownloadRoles(string $stage): array {
+    return match ($stage) {
+        'stage1' => ['processor1', 'admin', 'client'],
+        'stage2' => ['processor0', 'admin', 'client'],
+        'stage3' => ['processor1', 'admin', 'client'],
+        'stage4' => ['processor0', 'admin', 'client'],
+        default  => ['admin'],
+    };
+}
+
+/**
+ * Legacy function for backward compatibility (deprecated)
+ */
+function stageRoles(string $stage): array {
+    return stageUploadRoles($stage);
+}
+
+/**
+ * Convert a period label into a sortable timestamp.
+ * Supports:
+ * - Monthly labels: "Jan 26"
+ * - Fiscal labels: "FY 26"
+ * Falls back to created_at timestamp for custom labels.
+ */
+function periodLabelSortTimestamp(string $label, ?string $createdAt = null): int {
+    if (preg_match('/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+[0-9]{2}$/', $label)) {
+        $ts = strtotime('01 ' . $label);
+        if ($ts !== false) {
+            return $ts;
+        }
+    }
+
+    if (preg_match('/^FY\s+([0-9]{2})$/', $label, $m)) {
+        $year = 2000 + (int) $m[1];
+        $ts = strtotime($year . '-01-01');
+        if ($ts !== false) {
+            return $ts;
+        }
+    }
+
+    if (!empty($createdAt)) {
+        $ts = strtotime($createdAt);
+        if ($ts !== false) {
+            return $ts;
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * Sort periods chronologically by period label date representation.
+ * If client_name is present, periods are grouped by client first.
+ */
+function sortPeriodsChronologically(array &$periods): void {
+    usort($periods, function (array $a, array $b): int {
+        $aClient = $a['client_name'] ?? '';
+        $bClient = $b['client_name'] ?? '';
+        if ($aClient !== $bClient) {
+            return strcmp($aClient, $bClient);
+        }
+
+        $aTs = periodLabelSortTimestamp((string) ($a['period_label'] ?? ''), $a['created_at'] ?? null);
+        $bTs = periodLabelSortTimestamp((string) ($b['period_label'] ?? ''), $b['created_at'] ?? null);
+
+        if ($aTs === $bTs) {
+            return strcmp((string) ($a['period_label'] ?? ''), (string) ($b['period_label'] ?? ''));
+        }
+        return $aTs <=> $bTs;
+    });
 }

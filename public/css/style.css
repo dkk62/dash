@@ -18,30 +18,90 @@
 }
 
 .led-green {
-    background-color: #28a745;
-    border-color: #1e7e34;
-    box-shadow: 0 0 6px rgba(40, 167, 69, 0.6);
+    background-color: #39FF14;
+    border-color: #2BE60F;
+    box-shadow: 0 0 8px #39FF14, 0 0 12px rgba(57, 255, 20, 0.6);
 }
 
 .led-orange {
-    background-color: #fd7e14;
-    border-color: #e06c00;
-    box-shadow: 0 0 6px rgba(253, 126, 20, 0.6);
+    background-color: #FF6B00;
+    border-color: #FF8C00;
+    box-shadow: 0 0 8px #FF6B00, 0 0 12px rgba(255, 107, 0, 0.6);
 }
 
 /* Dashboard table */
 .dashboard-table th {
     white-space: nowrap;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
+    padding: 0.35rem 0.45rem;
+    line-height: 1.15;
 }
 
 .dashboard-table td {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     vertical-align: middle;
+    padding: 0.3rem 0.4rem;
 }
 
 .dashboard-table .upload-form {
     margin: 0;
+}
+
+.dashboard-table tbody tr.group-even td {
+    background-color: #ffffff;
+}
+
+.dashboard-table tbody tr.group-odd td {
+    background-color: #f3f4f6;
+}
+
+.dashboard-table tbody tr.client-start td {
+    border-top: 3px solid #000 !important;
+}
+
+.stage-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.action-icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+.upload-icon {
+    filter: hue-rotate(135deg) saturate(2) brightness(0.9);
+}
+
+.download-icon {
+    filter: hue-rotate(20deg) saturate(2.5) brightness(1.1);
+}
+
+.action-icon-fallback {
+    font-size: 18px;
+    line-height: 1;
+    color: #0d6efd;
+}
+
+.upload-icon-fallback {
+    color: #39FF14;
+}
+
+.download-icon-fallback {
+    color: #FF6B00;
+}
+
+.download-link {
+    display: inline-flex;
+    align-items: center;
+}
+
+.disabled-download {
+    opacity: 0.35;
+    cursor: not-allowed;
 }
 
 /* Locked row styling */
@@ -55,18 +115,33 @@
 
 /* Upload button styling */
 .upload-btn {
-    padding: 2px 6px;
-    font-size: 0.8rem;
+    line-height: 1;
+}
+
+.dashboard-table .btn-sm {
+    padding: 0.2rem 0.35rem;
+    font-size: 0.72rem;
+    line-height: 1.1;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .dashboard-table {
-        font-size: 0.8rem;
+        font-size: 0.72rem;
     }
     .led {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
+    }
+    .stage-actions {
+        gap: 10px;
+    }
+    .action-icon {
+        width: 18px;
+        height: 18px;
+    }
+    .action-icon-fallback {
+        font-size: 16px;
     }
 }
 

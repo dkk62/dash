@@ -14,18 +14,59 @@ ob_start();
             <thead class="table-dark">
                 <tr>
                     <th>Account Name</th>
+                    <th>Bank Feeds</th>
                     <th>Active</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($accounts as $a): ?>
+                <?php $rowFormId = 'account-edit-' . (int) $a['id']; ?>
                 <tr>
-                    <td><?= e($a['account_name']) ?></td>
                     <td>
-                        <?= $a['is_active'] ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>' ?>
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            name="account_name"
+                            value="<?= e($a['account_name']) ?>"
+                            form="<?= $rowFormId ?>"
+                            required
+                        >
                     </td>
                     <td>
+                        <div class="form-check form-switch m-0 d-inline-block">
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                role="switch"
+                                name="bank_feed_mode"
+                                value="automatic"
+                                form="<?= $rowFormId ?>"
+                                <?= (($a['bank_feed_mode'] ?? 'manual') === 'automatic') ? 'checked' : '' ?>
+                            >
+                        </div>
+                    </td>
+                    <td>
+                        <div class="form-check m-0 d-inline-block">
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                name="is_active"
+                                value="1"
+                                form="<?= $rowFormId ?>"
+                                <?= ((int) ($a['is_active'] ?? 1) === 1) ? 'checked' : '' ?>
+                            >
+                        </div>
+                    </td>
+                    <td>
+                        <form method="POST" action="/dash/?action=account_save" id="<?= $rowFormId ?>" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+                            <input type="hidden" name="client_id" value="<?= (int) $clientId ?>">
+                            <input type="hidden" name="id" value="<?= (int) $a['id'] ?>">
+                        </form>
+                        <button type="submit" class="btn btn-sm btn-outline-primary" form="<?= $rowFormId ?>" title="Save Changes">
+                            <i class="bi bi-check2"></i>
+                        </button>
                         <form method="POST" action="/dash/?action=account_delete" class="d-inline"
                               onsubmit="return confirm('Delete this account?')">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
@@ -37,7 +78,7 @@ ob_start();
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($accounts)): ?>
-                <tr><td colspan="3" class="text-muted text-center">No accounts yet.</td></tr>
+                <tr><td colspan="4" class="text-muted text-center">No accounts yet.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
@@ -48,9 +89,15 @@ ob_start();
         <form method="POST" action="/dash/?action=account_save">
             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
             <input type="hidden" name="client_id" value="<?= $clientId ?>">
+            <input type="hidden" name="id" value="0">
             <div class="mb-3">
                 <label class="form-label">Account Name *</label>
                 <input type="text" name="account_name" class="form-control" required>
+            </div>
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" role="switch" id="bankFeedModeSwitch" name="bank_feed_mode" value="automatic">
+                <label class="form-check-label" for="bankFeedModeSwitch">Bank Feeds: Automatic</label>
+                <div class="form-text">Default is Manual when this is OFF.</div>
             </div>
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-plus-lg"></i> Add Account

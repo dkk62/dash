@@ -4,7 +4,7 @@ class Stage1Status {
     public static function byPeriod(int $periodId): array {
         $db = getDB();
         $stmt = $db->prepare(
-            "SELECT s.*, a.account_name 
+            "SELECT s.*, a.account_name, a.bank_feed_mode 
              FROM stage1_status s 
              JOIN accounts a ON a.id = s.account_id 
              WHERE s.period_id = ? 

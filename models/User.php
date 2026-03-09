@@ -27,4 +27,11 @@ class User {
         $db = getDB();
         return $db->query("SELECT id, name, email, role, created_at FROM users ORDER BY name")->fetchAll();
     }
+
+    public static function byRole(string $role): array {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT id, name, email, role FROM users WHERE role = ? ORDER BY name");
+        $stmt->execute([$role]);
+        return $stmt->fetchAll();
+    }
 }

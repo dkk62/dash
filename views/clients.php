@@ -12,6 +12,7 @@ ob_start();
                     <th>Name</th>
                     <th>Email</th>
                     <th>Phone</th>
+                    <th>Password</th>
                     <th>Cycle</th>
                     <th>Actions</th>
                 </tr>
@@ -22,6 +23,7 @@ ob_start();
                     <td><?= e($c['name']) ?></td>
                     <td><?= e($c['email']) ?></td>
                     <td><?= e($c['phone'] ?? '') ?></td>
+                    <td><?= !empty($c['password_hash']) ? '<span class="badge bg-success">Set</span>' : '<span class="badge bg-warning text-dark">Not Set</span>' ?></td>
                     <td><span class="badge bg-secondary"><?= e($c['cycle_type']) ?></span></td>
                     <td>
                         <a href="/dash/?action=accounts&client_id=<?= $c['id'] ?>" class="btn btn-sm btn-info" title="Accounts">
@@ -45,7 +47,7 @@ ob_start();
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($clients)): ?>
-                <tr><td colspan="5" class="text-muted text-center">No clients yet.</td></tr>
+                <tr><td colspan="6" class="text-muted text-center">No clients yet.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
@@ -67,6 +69,12 @@ ob_start();
                 <label class="form-label">Email *</label>
                 <input type="email" name="email" class="form-control" required
                        value="<?= e($editClient['email'] ?? '') ?>">
+            </div>
+            <div class="mb-3">
+                <label class="form-label"><?= $editClient ? 'Password (leave empty to keep current)' : 'Password' ?></label>
+                <input type="password" name="password" class="form-control" 
+                       <?= !$editClient ? 'required' : '' ?> placeholder="Set client login password">
+                <small class="form-text text-muted">If provided, this will be the password for the client to login and access their dashboard.</small>
             </div>
             <div class="mb-3">
                 <label class="form-label">Phone</label>
