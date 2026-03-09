@@ -31,7 +31,9 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->prepare("INSERT INTO password_resets (email, token, expires_at) VALUES (?,?,?)")
            ->execute([$email, $token, $expires]);
 
-        $resetUrl  = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/dash/?action=reset_password&token=' . $token;
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $resetUrl  = $scheme . '://' . $host . appUrl('?action=reset_password&token=' . urlencode($token));
         $subject   = 'Password Reset - Work Progress System';
         $body      = "Hello {$user['name']},\n\n"
                    . "A password reset was requested for your account.\n\n"
@@ -68,8 +70,16 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mail->Body    = $body;
                 $mail->send();
             } catch (\Exception $e) {
-                // Suppress send failure — still show generic success message
+                logEmailFailure('password_reset_send', $e->getMessage(), [
+                    'email' => $email,
+                    'host' => $host,
+                ]);
             }
+        } else {
+            logEmailFailure('password_reset_send', 'PHPMailer not found', [
+                'email' => $email,
+                'mailer_path' => $mailerPath,
+            ]);
         }
     }
 

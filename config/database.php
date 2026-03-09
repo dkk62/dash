@@ -1,11 +1,11 @@
 <?php
 // Database configuration
-define('DB_HOST', '127.0.0.1');
-define('DB_PORT', '3306');
-define('DB_NAME', 'dash_system');
-define('DB_USER', 'root');
-define('DB_PASS', 'zicoriniba');
-define('DB_CHARSET', 'utf8mb4');
+define('DB_HOST', envValue('DB_HOST', '127.0.0.1'));
+define('DB_PORT', envValue('DB_PORT', '3306'));
+define('DB_NAME', envValue('DB_NAME', 'dash_system'));
+define('DB_USER', envValue('DB_USER', 'root'));
+define('DB_PASS', envValue('DB_PASS', ''));
+define('DB_CHARSET', envValue('DB_CHARSET', 'utf8mb4'));
 
 function getDB(): PDO {
     static $pdo = null;

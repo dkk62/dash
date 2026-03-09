@@ -3,15 +3,23 @@ session_start();
 
 define('BASE_PATH', __DIR__);
 define('UPLOAD_PATH', BASE_PATH . '/uploads');
+define('LOG_PATH', BASE_PATH . '/logs');
+
+require_once BASE_PATH . '/config/env.php';
+loadEnvFile(BASE_PATH . '/.env');
+
+define('APP_BASE_URL', envValue('APP_BASE_URL', '/dash'));
 
 require_once BASE_PATH . '/config/database.php';
 require_once BASE_PATH . '/config/mail.php';
 require_once BASE_PATH . '/helpers/functions.php';
-require_once BASE_PATH . '/middleware/Auth.php';
 
 // Ensure uploads directory exists
 if (!is_dir(UPLOAD_PATH)) {
     mkdir(UPLOAD_PATH, 0755, true);
+}
+if (!is_dir(LOG_PATH)) {
+    mkdir(LOG_PATH, 0755, true);
 }
 
 $action = $_GET['action'] ?? 'dashboard';

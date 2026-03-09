@@ -26,16 +26,16 @@ ob_start();
                     <td><?= !empty($c['password_hash']) ? '<span class="badge bg-success">Set</span>' : '<span class="badge bg-warning text-dark">Not Set</span>' ?></td>
                     <td><span class="badge bg-secondary"><?= e($c['cycle_type']) ?></span></td>
                     <td>
-                        <a href="/dash/?action=accounts&client_id=<?= $c['id'] ?>" class="btn btn-sm btn-info" title="Accounts">
+                        <a href="<?= e(appUrl('?action=accounts&client_id=' . $c['id'])) ?>" class="btn btn-sm btn-info" title="Accounts">
                             <i class="bi bi-bank"></i>
                         </a>
-                        <a href="/dash/?action=periods&client_id=<?= $c['id'] ?>" class="btn btn-sm btn-outline-dark" title="Periods">
+                        <a href="<?= e(appUrl('?action=periods&client_id=' . $c['id'])) ?>" class="btn btn-sm btn-outline-dark" title="Periods">
                             <i class="bi bi-calendar3"></i>
                         </a>
-                        <a href="/dash/?action=client_edit&id=<?= $c['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit">
+                        <a href="<?= e(appUrl('?action=client_edit&id=' . $c['id'])) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </a>
-                        <form method="POST" action="/dash/?action=client_delete" class="d-inline"
+                        <form method="POST" action="<?= e(appUrl('?action=client_delete')) ?>" class="d-inline"
                               onsubmit="return confirm('Delete this client and all related data?')">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="id" value="<?= $c['id'] ?>">
@@ -55,7 +55,7 @@ ob_start();
 
     <div class="col-md-4">
         <h4><?= $editClient ? 'Edit Client' : 'Add Client' ?></h4>
-        <form method="POST" action="/dash/?action=client_save">
+        <form method="POST" action="<?= e(appUrl('?action=client_save')) ?>">
             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
             <?php if ($editClient): ?>
                 <input type="hidden" name="id" value="<?= $editClient['id'] ?>">
@@ -92,7 +92,7 @@ ob_start();
                 <i class="bi bi-check-lg"></i> <?= $editClient ? 'Update' : 'Create' ?>
             </button>
             <?php if ($editClient): ?>
-                <a href="/dash/?action=clients" class="btn btn-secondary">Cancel</a>
+                <a href="<?= e(appUrl('?action=clients')) ?>" class="btn btn-secondary">Cancel</a>
             <?php endif; ?>
         </form>
     </div>

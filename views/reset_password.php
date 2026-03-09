@@ -6,7 +6,7 @@
     <title>Reset Password - Work Progress System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/dash/public/css/style.css" rel="stylesheet">
+    <link href="<?= e(assetUrl('css/style.css')) ?>" rel="stylesheet">
 </head>
 <body class="bg-light">
 <div class="container">
@@ -23,7 +23,7 @@
                     </h4>
                     <p class="text-muted text-center small mb-4">Choose a new password for <strong><?= e($reset['email']) ?></strong></p>
 
-                    <form method="POST" action="/dash/?action=do_reset_password">
+                    <form method="POST" action="<?= e(appUrl('?action=do_reset_password')) ?>">
                         <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                         <input type="hidden" name="token" value="<?= e($token) ?>">
 

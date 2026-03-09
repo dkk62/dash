@@ -10,7 +10,7 @@ ob_start();
     <div class="alert alert-info">
         No periods found. 
         <?php if (hasRole(['admin'])): ?>
-            <a href="/dash/?action=clients">Create clients and periods</a> to get started.
+            <a href="<?= e(appUrl('?action=clients')) ?>">Create clients and periods</a> to get started.
         <?php endif; ?>
     </div>
 <?php else: ?>
@@ -73,27 +73,27 @@ ob_start();
                 <div class="stage-actions">
                     <span class="led led-<?= e($s1['status']) ?>" title="<?= e(ucfirst($s1['status'])) ?>"></span>
                     <?php if (!$locked && hasRole(stageUploadRoles('stage1'))): ?>
-                        <form method="POST" action="/dash/?action=upload" enctype="multipart/form-data" class="d-inline upload-form">
+                        <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="period_id" value="<?= $pid ?>">
                             <input type="hidden" name="stage" value="stage1">
                             <input type="hidden" name="account_id" value="<?= $s1['account_id'] ?>">
                             <input type="file" name="files[]" class="d-none file-input" required multiple>
                             <button type="button" class="btn p-0 border-0 bg-transparent upload-btn" title="Upload">
-                                <img src="/dash/public/img/upload.png" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                                <img src="<?= e(assetUrl('img/upload.png')) ?>" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                                 <i class="bi bi-cloud-arrow-up action-icon-fallback upload-icon-fallback" style="display:none;"></i>
                             </button>
                         </form>
                     <?php endif; ?>
                     <?php $s1HasFile = $data['s1Files'][$s1['account_id']] ?? false; ?>
                     <?php if ($s1HasFile && hasRole(stageDownloadRoles('stage1'))): ?>
-                        <a href="/dash/?action=download&period_id=<?= $pid ?>&stage=stage1&account_id=<?= $s1['account_id'] ?>" title="Download" class="download-link">
-                            <img src="/dash/public/img/download.png" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                        <a href="<?= e(appUrl('?action=download&period_id=' . $pid . '&stage=stage1&account_id=' . $s1['account_id'])) ?>" title="Download" class="download-link">
+                            <img src="<?= e(assetUrl('img/download.png')) ?>" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                             <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                         </a>
                     <?php else: ?>
                         <span class="download-link disabled-download" title="<?= $s1HasFile ? 'You do not have permission to download' : 'No file available to download' ?>">
-                            <img src="/dash/public/img/download.png" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                            <img src="<?= e(assetUrl('img/download.png')) ?>" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                             <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                         </span>
                     <?php endif; ?>
@@ -112,25 +112,25 @@ ob_start();
                     <div class="stage-actions">
                         <span class="led led-<?= e($ss['status']) ?>" title="<?= e(ucfirst($ss['status'])) ?>"></span>
                         <?php if (!$locked && hasRole(stageUploadRoles($sn))): ?>
-                            <form method="POST" action="/dash/?action=upload" enctype="multipart/form-data" class="d-inline upload-form">
+                            <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form">
                                 <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                                 <input type="hidden" name="period_id" value="<?= $pid ?>">
                                 <input type="hidden" name="stage" value="<?= $sn ?>">
                                 <input type="file" name="files[]" class="d-none file-input" required multiple>
                                 <button type="button" class="btn p-0 border-0 bg-transparent upload-btn" title="Upload">
-                                    <img src="/dash/public/img/upload.png" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                                    <img src="<?= e(assetUrl('img/upload.png')) ?>" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                                     <i class="bi bi-cloud-arrow-up action-icon-fallback upload-icon-fallback" style="display:none;"></i>
                                 </button>
                             </form>
                         <?php endif; ?>
                         <?php if ($hasFile && hasRole(stageDownloadRoles($sn))): ?>
-                            <a href="/dash/?action=download&period_id=<?= $pid ?>&stage=<?= $sn ?>" title="Download" class="download-link">
-                                <img src="/dash/public/img/download.png" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                            <a href="<?= e(appUrl('?action=download&period_id=' . $pid . '&stage=' . $sn)) ?>" title="Download" class="download-link">
+                                <img src="<?= e(assetUrl('img/download.png')) ?>" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                                 <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                             </a>
                         <?php else: ?>
                             <span class="download-link disabled-download" title="<?= $hasFile ? 'You do not have permission to download' : 'No file available to download' ?>">
-                                <img src="/dash/public/img/download.png" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                                <img src="<?= e(assetUrl('img/download.png')) ?>" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                                 <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                             </span>
                         <?php endif; ?>
@@ -140,7 +140,7 @@ ob_start();
 
                 <td rowspan="<?= $groupRows ?>" class="text-center align-middle">
                     <?php if (!$locked && $data['showReminder'] && hasRole(['admin'])): ?>
-                        <form method="POST" action="/dash/?action=reminder" class="d-inline">
+                        <form method="POST" action="<?= e(appUrl('?action=reminder')) ?>" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="period_id" value="<?= $pid ?>">
                             <button type="submit" class="btn btn-sm btn-warning" title="Send Reminder"
@@ -154,7 +154,7 @@ ob_start();
                 <td rowspan="<?= $groupRows ?>" class="text-center align-middle">
                     <?php if ($locked): ?>
                         <?php if (hasRole(['admin'])): ?>
-                            <form method="POST" action="/dash/?action=unlock" class="d-inline">
+                            <form method="POST" action="<?= e(appUrl('?action=unlock')) ?>" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                                 <input type="hidden" name="period_id" value="<?= $pid ?>">
                                 <input type="hidden" name="mode" value="unlock">
@@ -167,7 +167,7 @@ ob_start();
                             <span class="badge bg-danger" title="Locked"><i class="bi bi-lock-fill"></i></span>
                         <?php endif; ?>
                     <?php elseif ($data['showLock'] && hasRole(['admin'])): ?>
-                        <form method="POST" action="/dash/?action=lock" class="d-inline">
+                        <form method="POST" action="<?= e(appUrl('?action=lock')) ?>" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="period_id" value="<?= $pid ?>">
                             <input type="hidden" name="mode" value="lock">

@@ -26,12 +26,12 @@ $roleBadge = ['admin' => 'bg-danger', 'processor0' => 'bg-primary', 'processor1'
                     <td><span class="badge <?= $roleBadge[$u['role']] ?? 'bg-secondary' ?>"><?= e($u['role']) ?></span></td>
                     <td><small><?= e($u['created_at']) ?></small></td>
                     <td>
-                        <a href="/dash/?action=user_edit&id=<?= $u['id'] ?>"
+                        <a href="<?= e(appUrl('?action=user_edit&id=' . $u['id'])) ?>"
                            class="btn btn-sm btn-outline-primary" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </a>
                         <?php if ($u['id'] != $_SESSION['user_id']): ?>
-                        <form method="POST" action="/dash/?action=user_delete" class="d-inline"
+                        <form method="POST" action="<?= e(appUrl('?action=user_delete')) ?>" class="d-inline"
                               onsubmit="return confirm('Delete user <?= e(addslashes($u['name'])) ?>?')">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="id" value="<?= $u['id'] ?>">
@@ -58,7 +58,7 @@ $roleBadge = ['admin' => 'bg-danger', 'processor0' => 'bg-primary', 'processor1'
                 <strong><?= $editUser ? '<i class="bi bi-pencil"></i> Edit User' : '<i class="bi bi-person-plus"></i> Add User' ?></strong>
             </div>
             <div class="card-body">
-                <form method="POST" action="/dash/?action=user_save">
+                <form method="POST" action="<?= e(appUrl('?action=user_save')) ?>">
                     <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                     <?php if ($editUser): ?>
                         <input type="hidden" name="id" value="<?= $editUser['id'] ?>">
@@ -97,7 +97,7 @@ $roleBadge = ['admin' => 'bg-danger', 'processor0' => 'bg-primary', 'processor1'
                             <i class="bi bi-check-lg"></i> <?= $editUser ? 'Update' : 'Create' ?>
                         </button>
                         <?php if ($editUser): ?>
-                            <a href="/dash/?action=users" class="btn btn-secondary">Cancel</a>
+                            <a href="<?= e(appUrl('?action=users')) ?>" class="btn btn-secondary">Cancel</a>
                         <?php endif; ?>
                     </div>
                 </form>

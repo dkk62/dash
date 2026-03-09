@@ -49,6 +49,12 @@ function sendStageUploadNotifications(string $stage, array $period, ?int $accoun
 
     $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
     if (!file_exists($mailerPath)) {
+        logEmailFailure('stage_upload_notify', 'PHPMailer not found', [
+            'stage' => $stage,
+            'period_id' => $period['id'] ?? null,
+            'target_role' => $targetRole,
+            'mailer_path' => $mailerPath,
+        ]);
         return ['target_role' => $targetRole, 'attempted' => count($recipients), 'sent' => 0];
     }
 
@@ -80,7 +86,13 @@ function sendStageUploadNotifications(string $stage, array $period, ?int $accoun
             $mail->send();
             $sent++;
         } catch (\Exception $e) {
-            // Keep workflow non-blocking if a recipient send fails.
+            logEmailFailure('stage_upload_notify', $e->getMessage(), [
+                'stage' => $stage,
+                'period_id' => $period['id'] ?? null,
+                'target_role' => $targetRole,
+                'recipient_email' => $r['email'] ?? null,
+                'recipient_name' => $r['name'] ?? null,
+            ]);
             continue;
         }
     }

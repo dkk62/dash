@@ -1,8 +1,10 @@
 # Uploaded files
 uploads/
 
-# Utility/setup scripts (not needed in production)
-seed.php
+# Local environment secrets
+.env
+.env.local
+.env.*.local
 
 # OS files
 .DS_Store

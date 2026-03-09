@@ -5,7 +5,7 @@ ob_start();
 
 <h4><i class="bi bi-journal-text"></i> Activity Logs</h4>
 
-<form method="GET" action="/dash/" class="row g-2 mb-3">
+<form method="GET" action="<?= e(appUrl('/')) ?>" class="row g-2 mb-3">
     <input type="hidden" name="action" value="logs">
     <div class="col-auto">
         <select name="filter_action" class="form-select form-select-sm">
@@ -17,7 +17,7 @@ ob_start();
     </div>
     <div class="col-auto">
         <button class="btn btn-sm btn-primary">Filter</button>
-        <a href="/dash/?action=logs" class="btn btn-sm btn-outline-secondary">Clear</a>
+        <a href="<?= e(appUrl('?action=logs')) ?>" class="btn btn-sm btn-outline-secondary">Clear</a>
     </div>
 </form>
 

@@ -4,7 +4,7 @@ ob_start();
 ?>
 
 <h4><i class="bi bi-bank"></i> Accounts for <?= e($client['name']) ?></h4>
-<a href="/dash/?action=clients" class="btn btn-sm btn-outline-secondary mb-3">
+<a href="<?= e(appUrl('?action=clients')) ?>" class="btn btn-sm btn-outline-secondary mb-3">
     <i class="bi bi-arrow-left"></i> Back to Clients
 </a>
 
@@ -59,7 +59,7 @@ ob_start();
                         </div>
                     </td>
                     <td>
-                        <form method="POST" action="/dash/?action=account_save" id="<?= $rowFormId ?>" class="d-inline">
+                        <form method="POST" action="<?= e(appUrl('?action=account_save')) ?>" id="<?= $rowFormId ?>" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="client_id" value="<?= (int) $clientId ?>">
                             <input type="hidden" name="id" value="<?= (int) $a['id'] ?>">
@@ -67,7 +67,7 @@ ob_start();
                         <button type="submit" class="btn btn-sm btn-outline-primary" form="<?= $rowFormId ?>" title="Save Changes">
                             <i class="bi bi-check2"></i>
                         </button>
-                        <form method="POST" action="/dash/?action=account_delete" class="d-inline"
+                        <form method="POST" action="<?= e(appUrl('?action=account_delete')) ?>" class="d-inline"
                               onsubmit="return confirm('Delete this account?')">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="id" value="<?= $a['id'] ?>">
@@ -86,7 +86,7 @@ ob_start();
 
     <div class="col-md-4">
         <h5>Add Account</h5>
-        <form method="POST" action="/dash/?action=account_save">
+        <form method="POST" action="<?= e(appUrl('?action=account_save')) ?>">
             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
             <input type="hidden" name="client_id" value="<?= $clientId ?>">
             <input type="hidden" name="id" value="0">

@@ -7,7 +7,7 @@
     <title>Login - Work Progress System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/dash/public/css/style.css" rel="stylesheet">
+    <link href="<?= e(assetUrl('css/style.css')) ?>" rel="stylesheet">
 </head>
 <body class="bg-light">
 <div class="container">
@@ -23,7 +23,7 @@
                         <i class="bi bi-clipboard-data"></i><br>
                         Work Progress System
                     </h3>
-                    <form method="POST" action="/dash/?action=do_login">
+                    <form method="POST" action="<?= e(appUrl('?action=do_login')) ?>">
                         <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                         <div style="position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden;" aria-hidden="true">
                             <label for="website">Website</label>
@@ -42,7 +42,7 @@
                         </button>
                     </form>
                     <div class="text-center mt-3">
-                        <a href="/dash/?action=forgot_password" class="text-muted small">
+                        <a href="<?= e(appUrl('?action=forgot_password')) ?>" class="text-muted small">
                             <i class="bi bi-key"></i> Forgot your password?
                         </a>
                     </div>

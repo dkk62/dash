@@ -1,7 +1,37 @@
 <?php
 
+function basePath(): string {
+    $base = defined('APP_BASE_URL') ? (string) APP_BASE_URL : '/dash';
+    $base = trim($base);
+    if ($base === '') {
+        $base = '/';
+    }
+    if ($base[0] !== '/') {
+        $base = '/' . $base;
+    }
+    return rtrim($base, '/');
+}
+
+function appUrl(string $path = ''): string {
+    $base = basePath();
+    if ($path === '' || $path === '/') {
+        return $base . '/';
+    }
+    if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        return $path;
+    }
+    if ($path[0] === '?') {
+        return $base . '/' . $path;
+    }
+    return $base . '/' . ltrim($path, '/');
+}
+
+function assetUrl(string $path): string {
+    return appUrl('public/' . ltrim($path, '/'));
+}
+
 function redirect(string $url): void {
-    header('Location: /dash/' . ltrim($url, '/'));
+    header('Location: ' . appUrl($url));
     exit;
 }
 
@@ -47,6 +77,23 @@ function sanitizeFilename(string $name): string {
 
 function getClientIp(): string {
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+
+function logEmailFailure(string $context, string $errorMessage, array $metadata = []): void {
+    $logDir = defined('LOG_PATH') ? LOG_PATH : (defined('BASE_PATH') ? BASE_PATH . '/logs' : __DIR__ . '/../logs');
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+
+    $entry = [
+        'timestamp' => date('c'),
+        'context' => $context,
+        'error' => $errorMessage,
+        'metadata' => $metadata,
+        'ip' => getClientIp(),
+    ];
+
+    error_log(json_encode($entry, JSON_UNESCAPED_SLASHES) . PHP_EOL, 3, $logDir . '/email_failures.log');
 }
 
 function setFlash(string $type, string $msg): void {

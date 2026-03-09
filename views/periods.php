@@ -4,7 +4,7 @@ ob_start();
 ?>
 
 <h4><i class="bi bi-calendar3"></i> Periods for <?= e($client['name']) ?></h4>
-<a href="/dash/?action=clients" class="btn btn-sm btn-outline-secondary mb-3">
+<a href="<?= e(appUrl('?action=clients')) ?>" class="btn btn-sm btn-outline-secondary mb-3">
     <i class="bi bi-arrow-left"></i> Back to Clients
 </a>
 
@@ -31,7 +31,7 @@ ob_start();
                     <td><?= e($p['created_at']) ?></td>
                     <td>
                         <?php if (!$p['is_locked']): ?>
-                        <form method="POST" action="/dash/?action=period_delete" class="d-inline"
+                        <form method="POST" action="<?= e(appUrl('?action=period_delete')) ?>" class="d-inline"
                               onsubmit="return confirm('Delete this period and all its data?')">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="id" value="<?= $p['id'] ?>">
@@ -51,9 +51,36 @@ ob_start();
 
     <div class="col-md-4">
         <div class="card mb-3">
+            <div class="card-header"><strong>Monthly Manual Add (Dropdown)</strong></div>
+            <div class="card-body">
+                <form method="POST" action="<?= e(appUrl('?action=period_save')) ?>">
+                    <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+                    <input type="hidden" name="client_id" value="<?= $clientId ?>">
+                    <div class="mb-3">
+                        <label class="form-label">Monthly Period</label>
+                        <select name="period_label" class="form-select" required>
+                            <?php
+                            for ($year = 2025; $year <= 2030; $year++) {
+                                for ($month = 1; $month <= 12; $month++) {
+                                    $label = date('M y', strtotime("{$year}-{$month}-01"));
+                                    echo '<option value="' . e($label) . '">' . e($label) . '</option>';
+                                }
+                            }
+                            ?>
+                        </select>
+                        <div class="form-text">Choose one month at a time from <code>Jan 25</code> to <code>Dec 30</code>.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-lg"></i> Add Monthly Period
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Fiscal Year (Standardized)</strong></div>
             <div class="card-body">
-                <form method="POST" action="/dash/?action=period_generate">
+                <form method="POST" action="<?= e(appUrl('?action=period_generate')) ?>">
                     <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                     <input type="hidden" name="client_id" value="<?= $clientId ?>">
                     <input type="hidden" name="mode" value="fiscal">
@@ -75,7 +102,7 @@ ob_start();
         <div class="card mb-3">
             <div class="card-header"><strong>Monthly Auto-Create</strong></div>
             <div class="card-body">
-                <form method="POST" action="/dash/?action=period_generate">
+                <form method="POST" action="<?= e(appUrl('?action=period_generate')) ?>">
                     <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                     <input type="hidden" name="client_id" value="<?= $clientId ?>">
                     <input type="hidden" name="mode" value="monthly_range">

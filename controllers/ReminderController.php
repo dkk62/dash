@@ -74,9 +74,19 @@ if (file_exists($mailerPath)) {
         $mail->send();
         $emailSent = true;
     } catch (\Exception $e) {
-        // Log error but don't block
+        logEmailFailure('reminder_send', $e->getMessage(), [
+            'client_email' => $client['email'] ?? null,
+            'period_id' => $periodId,
+            'period_label' => $period['period_label'] ?? null,
+        ]);
         $emailSent = false;
     }
+} else {
+    logEmailFailure('reminder_send', 'PHPMailer not found', [
+        'client_email' => $client['email'] ?? null,
+        'period_id' => $periodId,
+        'mailer_path' => $mailerPath,
+    ]);
 }
 
 // Log action regardless
