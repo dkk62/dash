@@ -135,4 +135,60 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    // ---- Download LED update via AJAX ----
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+    function findLed(periodId, stage, accountId) {
+        var selector = '[data-led][data-period-id="' + periodId + '"][data-stage="' + stage + '"]';
+        if (accountId) {
+            selector += '[data-account-id="' + accountId + '"]';
+        }
+        return document.querySelector(selector);
+    }
+
+    function applyLedStatus(led, status) {
+        led.className = led.className.replace(/\bled-\w+/g, '').trim();
+        led.classList.add('led-' + status);
+        led.title = status.charAt(0).toUpperCase() + status.slice(1);
+    }
+
+    document.querySelectorAll('[data-download-trigger]').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            var href      = this.getAttribute('href');
+            var periodId  = this.getAttribute('data-period-id');
+            var stage     = this.getAttribute('data-stage');
+            var accountId = this.getAttribute('data-account-id') || '';
+
+            // Trigger the actual file download
+            window.location.href = href;
+
+            // AJAX call to update LED status in DB and DOM
+            var formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+            formData.append('period_id', periodId);
+            formData.append('stage', stage);
+            if (accountId) {
+                formData.append('account_id', accountId);
+            }
+
+            var xhr = new XMLHttpRequest();
+            var markUrl = href.split('?')[0] + '?action=mark_downloaded';
+            xhr.open('POST', markUrl, true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                if (xhr.status >= 200 && xhr.status < 300 && xhr.response && xhr.response.success) {
+                    var led = findLed(periodId, stage, accountId || null);
+                    if (led) {
+                        applyLedStatus(led, xhr.response.status);
+                    }
+                }
+            });
+            xhr.send(formData);
+        });
+    });
 });

@@ -76,7 +76,12 @@ ob_start();
             <td class="text-center">
                 <?php if ($s1): ?>
                 <div class="stage-actions">
-                    <span class="led led-<?= e($s1['status']) ?>" title="<?= e(ucfirst($s1['status'])) ?>"></span>
+                    <span class="led led-<?= e($s1['status']) ?>"
+                          data-led
+                          data-period-id="<?= $pid ?>"
+                          data-stage="stage1"
+                          data-account-id="<?= $s1['account_id'] ?>"
+                          title="<?= e(ucfirst($s1['status'])) ?>"></span>
                     <?php if (!$locked && hasRole(stageUploadRoles('stage1'))): ?>
                         <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
@@ -98,7 +103,13 @@ ob_start();
                     <?php endif; ?>
                     <?php $s1HasFile = $data['s1Files'][$s1['account_id']] ?? false; ?>
                     <?php if ($s1HasFile && hasRole(stageDownloadRoles('stage1'))): ?>
-                        <a href="<?= e(appUrl('?action=download&period_id=' . $pid . '&stage=stage1&account_id=' . $s1['account_id'])) ?>" title="Download" class="download-link">
+                        <a href="<?= e(appUrl('?action=download&period_id=' . $pid . '&stage=stage1&account_id=' . $s1['account_id'])) ?>"
+                           title="Download"
+                           class="download-link"
+                           data-download-trigger
+                           data-period-id="<?= $pid ?>"
+                           data-stage="stage1"
+                           data-account-id="<?= $s1['account_id'] ?>">
                             <img src="<?= e(assetUrl('img/download.png')) ?>" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                             <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                         </a>
@@ -121,7 +132,11 @@ ob_start();
                 ?>
                 <td rowspan="<?= $groupRows ?>" class="text-center align-middle">
                     <div class="stage-actions">
-                        <span class="led led-<?= e($ss['status']) ?>" title="<?= e(ucfirst($ss['status'])) ?>"></span>
+                        <span class="led led-<?= e($ss['status']) ?>"
+                              data-led
+                              data-period-id="<?= $pid ?>"
+                              data-stage="<?= $sn ?>"
+                              title="<?= e(ucfirst($ss['status'])) ?>"></span>
                         <?php if (!$locked && hasRole(stageUploadRoles($sn))): ?>
                             <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form">
                                 <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
@@ -141,7 +156,12 @@ ob_start();
                             </form>
                         <?php endif; ?>
                         <?php if ($hasFile && hasRole(stageDownloadRoles($sn))): ?>
-                            <a href="<?= e(appUrl('?action=download&period_id=' . $pid . '&stage=' . $sn)) ?>" title="Download" class="download-link">
+                            <a href="<?= e(appUrl('?action=download&period_id=' . $pid . '&stage=' . $sn)) ?>"
+                               title="Download"
+                               class="download-link"
+                               data-download-trigger
+                               data-period-id="<?= $pid ?>"
+                               data-stage="<?= $sn ?>">
                                 <img src="<?= e(assetUrl('img/download.png')) ?>" alt="Download" class="action-icon download-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                                 <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                             </a>
@@ -203,6 +223,51 @@ ob_start();
     </tbody>
 </table>
 </div>
+
+<?php if ($totalPages > 1): ?>
+<nav aria-label="Dashboard pagination" class="mt-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <small class="text-muted">
+            Showing clients
+            <?= (($page - 1) * $perPage + 1) ?>–<?= min($page * $perPage, $totalClients) ?>
+            of <?= $totalClients ?>
+        </small>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                <a class="page-link" href="<?= e(appUrl('?action=dashboard&page=' . ($page - 1))) ?>" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            <?php
+            $window = 2;
+            $start  = max(1, $page - $window);
+            $end    = min($totalPages, $page + $window);
+            if ($start > 1): ?>
+                <li class="page-item">
+                    <a class="page-link" href="<?= e(appUrl('?action=dashboard&page=1')) ?>">1</a>
+                </li>
+                <?php if ($start > 2): ?><li class="page-item disabled"><span class="page-link">…</span></li><?php endif; ?>
+            <?php endif; ?>
+            <?php for ($p = $start; $p <= $end; $p++): ?>
+                <li class="page-item <?= $p === $page ? 'active' : '' ?>">
+                    <a class="page-link" href="<?= e(appUrl('?action=dashboard&page=' . $p)) ?>"><?= $p ?></a>
+                </li>
+            <?php endfor; ?>
+            <?php if ($end < $totalPages): ?>
+                <?php if ($end < $totalPages - 1): ?><li class="page-item disabled"><span class="page-link">…</span></li><?php endif; ?>
+                <li class="page-item">
+                    <a class="page-link" href="<?= e(appUrl('?action=dashboard&page=' . $totalPages)) ?>"><?= $totalPages ?></a>
+                </li>
+            <?php endif; ?>
+            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                <a class="page-link" href="<?= e(appUrl('?action=dashboard&page=' . ($page + 1))) ?>" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+<?php endif; ?>
 
 <?php endif; ?>
 

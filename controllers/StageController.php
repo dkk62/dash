@@ -333,3 +333,49 @@ if ($action === 'download') {
     @unlink($zipPath);
     exit;
 }
+
+// ---- MARK DOWNLOADED (AJAX LED update without page reload) ----
+if ($action === 'mark_downloaded' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+
+    if (!verifyCsrf()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
+        exit;
+    }
+
+    $periodId  = (int) ($_POST['period_id'] ?? 0);
+    $stage     = $_POST['stage'] ?? '';
+    $accountId = !empty($_POST['account_id']) ? (int) $_POST['account_id'] : null;
+
+    if (!in_array($stage, ['stage1', 'stage2', 'stage3', 'stage4'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid stage.']);
+        exit;
+    }
+
+    if (!hasRole(stageDownloadRoles($stage))) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Permission denied.']);
+        exit;
+    }
+
+    if ($stage === 'stage1' && $accountId) {
+        $s1 = Stage1Status::find($periodId, $accountId);
+        if ($s1 && $s1['status'] === 'green') {
+            Stage1Status::setOrange($periodId, $accountId);
+        }
+        $s1 = Stage1Status::find($periodId, $accountId);
+        $newStatus = $s1 ? $s1['status'] : 'grey';
+    } else {
+        $ss = StageStatus::find($periodId, $stage);
+        if ($ss && $ss['status'] === 'green') {
+            StageStatus::setOrange($periodId, $stage);
+        }
+        $ss = StageStatus::find($periodId, $stage);
+        $newStatus = $ss ? $ss['status'] : 'grey';
+    }
+
+    echo json_encode(['success' => true, 'status' => $newStatus]);
+    exit;
+}
