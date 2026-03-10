@@ -6,9 +6,16 @@ ob_start();
 
 <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
     <h4 class="mb-0"><i class="bi bi-grid-3x3"></i> Work Progress Dashboard - <?= date('m/d/Y') ?></h4>
-    <a href="<?= e(appUrl('?action=dashboard_export')) ?>" class="btn btn-sm btn-outline-success">
-        <i class="bi bi-file-earmark-excel"></i> Export .xlsx
-    </a>
+    <div class="d-flex gap-2 flex-wrap">
+        <?php if (hasRole(['admin']) && !empty($reminderTargets)): ?>
+        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#reminderModal">
+            <i class="bi bi-bell"></i> Send Reminder
+        </button>
+        <?php endif; ?>
+        <a href="<?= e(appUrl('?action=dashboard_export')) ?>" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Export .xlsx
+        </a>
+    </div>
 </div>
 
 <?php if (empty($dashboardData)): ?>
@@ -31,7 +38,7 @@ ob_start();
             <th class="text-center">Stage 2<br><small>Processed</small></th>
             <th class="text-center">Stage 3<br><small>Reclassified</small></th>
             <th class="text-center">Stage 4<br><small>Reclass. Complete</small></th>
-            <th class="text-center">Reminder</th>
+            <?php if (hasRole(['admin'])): ?><th class="text-center">Last Reminder</th><?php endif; ?>
             <th class="text-center">Locked</th>
         </tr>
     </thead>
@@ -175,18 +182,19 @@ ob_start();
                 </td>
                 <?php endforeach; ?>
 
+                <?php if (hasRole(['admin'])): ?>
                 <td rowspan="<?= $groupRows ?>" class="text-center align-middle">
-                    <?php if (!$locked && $data['showReminder'] && hasRole(['admin'])): ?>
-                        <form method="POST" action="<?= e(appUrl('?action=reminder')) ?>" class="d-inline">
-                            <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
-                            <input type="hidden" name="period_id" value="<?= $pid ?>">
-                            <button type="submit" class="btn btn-sm btn-warning" title="Send Reminder"
-                                    onclick="return confirm('Send reminder email to client?')">
-                                <i class="bi bi-bell"></i> Remind
-                            </button>
-                        </form>
+                    <?php
+                        $cid = (int)$period['client_id'];
+                        $lastRemindedAt = $lastReminderByClientId[$cid] ?? null;
+                    ?>
+                    <?php if ($lastRemindedAt): ?>
+                        <small class="text-muted"><?= date('m/d/Y', strtotime($lastRemindedAt)) ?></small>
+                    <?php else: ?>
+                        <small class="text-muted">—</small>
                     <?php endif; ?>
                 </td>
+                <?php endif; ?>
 
                 <td rowspan="<?= $groupRows ?>" class="text-center align-middle">
                     <?php if ($locked): ?>
@@ -269,6 +277,38 @@ ob_start();
 </nav>
 <?php endif; ?>
 
+<?php endif; ?>
+
+<?php if (hasRole(['admin']) && !empty($reminderTargets)): ?>
+<!-- Send Reminder Confirmation Modal -->
+<div class="modal fade" id="reminderModal" tabindex="-1" aria-labelledby="reminderModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reminderModalLabel"><i class="bi bi-bell"></i> Confirm Send Reminders</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="<?= e(appUrl('?action=reminder_bulk')) ?>">
+        <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+        <div class="modal-body">
+          <p class="mb-2">A reminder email will be sent to the following <?= count($reminderTargets) === 1 ? 'client' : count($reminderTargets) . ' clients' ?>:</p>
+          <ul class="list-group list-group-flush mb-1">
+            <?php foreach ($reminderTargets as $t): ?>
+            <li class="list-group-item px-0 py-1">
+              <span class="fw-semibold"><?= e($t['name']) ?></span>
+              <small class="text-muted ms-2"><?= e($t['email']) ?></small>
+            </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning"><i class="bi bi-send"></i> Send Reminders</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 <?php endif; ?>
 
 <?php

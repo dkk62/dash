@@ -1,6 +1,6 @@
 # Work Progress Dashboard (PHP)
 
-A role-based workflow system for managing client file processing across four stages (`stage1` to `stage4`) with status LEDs, reminders, period locking, and activity logs.
+A role-based workflow system for managing client file processing across four stages (`stage1` to `stage4`) with status LEDs, bulk reminders, period locking, and activity logs.
 
 This project is designed for XAMPP-style hosting at `/dash` and stores uploaded files under `uploads/clients/...`.
 
@@ -19,8 +19,10 @@ This project is designed for XAMPP-style hosting at `/dash` and stores uploaded 
 - Logs and Auditing
 - File Storage Layout
 - Security Features
+- Operational Logs
 - Troubleshooting
 - Project Structure
+- Reminder System
 - Future Improvements
 
 ## Overview
@@ -40,7 +42,7 @@ Each stage has an LED status:
 - `green`: uploaded and ready for downstream processing
 - `orange`: downloaded/consumed by next role
 
-Admins can send reminder emails and lock/unlock periods. Upload/download activity is logged.
+Admins can send bulk reminder emails to all clients with pending items in one action, and lock/unlock periods. Upload/download activity is logged.
 
 ## Core Workflow
 
@@ -49,7 +51,7 @@ Admins can send reminder emails and lock/unlock periods. Upload/download activit
 3. Admin creates periods (manual, fiscal, or monthly range).
 4. Users/clients upload files in allowed stages.
 5. Downstream users download files and progress statuses.
-6. Admin sends reminders for pending Stage 1 items.
+6. Admin sends bulk reminders to all clients with pending Stage 1 items.
 7. When all stages are orange, admin locks the period.
 
 Important behavior:
@@ -63,7 +65,7 @@ Important behavior:
 
 ### System Roles
 
-- `admin`: full access to users, clients, accounts, periods, logs, reminders, lock/unlock.
+- `admin`: full access to users, clients, accounts, periods, logs, bulk reminders, lock/unlock.
 - `processor0`: stage worker for Stage 1 and Stage 3 uploads.
 - `processor1`: stage worker for Stage 2 and Stage 4 uploads.
 - `client`: can log in (if client password is set), upload Stage 1, and download permitted stage outputs.
@@ -245,9 +247,10 @@ Then set/reset password using:
    - add one FY period, or
    - generate monthly periods (year range 2026-2030).
 5. Use `Dashboard` to monitor Stage 1-4 LEDs.
-6. Use `Remind` when Stage 1 has `grey/orange` pending accounts.
-7. Lock period only after all stage LEDs are orange.
-8. Review `Logs` for audit trail.
+6. When any client has grey/orange Stage 1 items, a **Send Reminder** button appears in the dashboard header (top-right, next to Export .xlsx). Click it to open a confirmation popup listing all clients who will receive an email. Confirm to send — one email per client email address covering all their pending periods.
+7. The **Last Reminder** column in the dashboard shows the date of the most recent reminder sent to each client (`mm/dd/yyyy`), or `—` if none has been sent. This column is visible to admin only.
+8. Lock period only after all stage LEDs are orange.
+9. Review `Logs` for audit trail.
 
 ### Processor 0 Guide (`processor0`)
 
@@ -298,7 +301,7 @@ Logged actions include:
 - `upload`
 - `reupload`
 - `download`
-- `reminder_sent`
+- `reminder_sent` — one record per client per bulk send, with `client_id` set for last-reminder date lookups
 - `period_locked`
 - `period_unlocked`
 
@@ -375,7 +378,7 @@ Database file records are stored in `files` table with original filename + relat
 ## Project Structure
 
 - `index.php`: front controller/router
-- `controllers/`: request action handlers
+- `controllers/`: request action handlers (`ReminderBulkController.php` handles the single bulk-send action)
 - `models/`: DB access and domain operations
 - `views/`: Bootstrap templates
 - `helpers/functions.php`: shared helpers (auth checks, CSRF, logging, stage rules)
@@ -383,6 +386,30 @@ Database file records are stored in `files` table with original filename + relat
 - `config/mail.php`: SMTP constants
 - `uploads/`: runtime file storage
 - `public/`: CSS/JS/assets
+
+## Reminder System
+
+The reminder system is admin-only and sends **one consolidated email per unique client email address**.
+
+### Triggering a send
+
+1. Open the dashboard. If any unlocked period has pending (grey or orange) Stage 1 accounts, a **Send Reminder** button appears next to the Export .xlsx button.
+2. Clicking the button opens a Bootstrap modal listing every client and email address that will be contacted.
+3. Click **Send Reminders** to confirm, or **Cancel** / ✕ to dismiss without sending.
+
+### What the email contains
+
+Each email is addressed to the client's email and lists every pending period and account across all their records. If multiple client records share an email address, those are combined into a single email.
+
+### Last Reminder date
+
+- The dashboard table has a **Last Reminder** column visible only to admins.
+- It displays the date of the last `reminder_sent` log entry for each client (`mm/dd/yyyy`), queried from the `logs` table.
+- Locked periods are never included in reminder targets.
+
+### Route
+
+- `POST ?action=reminder_bulk` — handled by `controllers/ReminderBulkController.php`, protected by `requireRole(['admin'])` and CSRF.
 
 ## Future Improvements
 

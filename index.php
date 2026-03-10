@@ -102,9 +102,9 @@ switch ($action) {
         break;
 
     // Reminder
-    case 'reminder':
+    case 'reminder_bulk':
         requireRole(['admin']);
-        require_once BASE_PATH . '/controllers/ReminderController.php';
+        require_once BASE_PATH . '/controllers/ReminderBulkController.php';
         break;
 
     // Lock

@@ -43,6 +43,30 @@ class FileRecord {
         return $stmt->fetchColumn() > 0;
     }
 
+    /**
+     * Load file presence data for multiple periods in one query.
+     * Returns [periodId => ['stage1' => [accountId => true], 'stage2' => true, ...]]
+     */
+    public static function bulkHasFiles(array $periodIds): array {
+        if (empty($periodIds)) return [];
+        $db = getDB();
+        $placeholders = implode(',', array_fill(0, count($periodIds), '?'));
+        $stmt = $db->prepare("SELECT period_id, stage_name, account_id FROM files WHERE period_id IN ($placeholders)");
+        $stmt->execute($periodIds);
+        $result = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $pid   = (int)$row['period_id'];
+            $stage = $row['stage_name'];
+            $aid   = $row['account_id'];
+            if ($stage === 'stage1' && $aid !== null) {
+                $result[$pid]['stage1'][(int)$aid] = true;
+            } else {
+                $result[$pid][$stage] = true;
+            }
+        }
+        return $result;
+    }
+
     public static function getFirst(int $periodId, string $stage, ?int $accountId = null): ?array {
         $db = getDB();
         if ($stage === 'stage1' && $accountId !== null) {

@@ -5,6 +5,7 @@ require_once BASE_PATH . '/models/Account.php';
 require_once BASE_PATH . '/models/Stage1Status.php';
 require_once BASE_PATH . '/models/StageStatus.php';
 require_once BASE_PATH . '/models/FileRecord.php';
+require_once BASE_PATH . '/models/Log.php';
 
 /**
  * Check if a period label is monthly format like "Jan 26".
@@ -294,51 +295,58 @@ if (currentRole() === 'client') {
         ? array_map('intval', (array) $_SESSION['client_ids'])
         : (!empty($_SESSION['client_id']) ? [(int) $_SESSION['client_id']] : []);
     if (!empty($clientIds)) {
-        $periods = array_filter($periods, function($p) use ($clientIds) {
+        $periods = array_values(array_filter($periods, function($p) use ($clientIds) {
             return in_array((int) $p['client_id'], $clientIds, true);
-        });
+        }));
     }
 }
 
-// Build dashboard data
-$dashboardData = [];
+// Bulk-load all status and file data in 3 queries instead of 5× per period.
+$allPeriodIds = array_map(fn($p) => (int)$p['id'], $periods);
+$bulkS1     = Stage1Status::bulkByPeriods($allPeriodIds);
+$bulkStages = StageStatus::bulkByPeriods($allPeriodIds);
+$bulkFiles  = FileRecord::bulkHasFiles($allPeriodIds);
+
+// Build full dashboard data using pre-loaded bulk data (no additional queries).
+$allDashboardData = [];
 
 foreach ($periods as $period) {
-    $pid = $period['id'];
-    $cid = $period['client_id'];
+    $pid = (int)$period['id'];
 
-    // Stage 1 statuses (account-wise)
-    $s1statuses = Stage1Status::byPeriod($pid);
+    $s1statuses    = $bulkS1[$pid]     ?? [];
+    $stageStatuses = $bulkStages[$pid] ?? [];
 
-    // Stages 2-4 statuses
-    $stageStatuses = StageStatus::byPeriod($pid);
-
-    // Check if reminder should be shown
-    $showReminder = Stage1Status::anyGreyOrOrange($pid);
-
-    // Check if lock button should be shown
-    $s1AllOrange   = Stage1Status::allOrange($pid);
-    $s234AllOrange = StageStatus::allOrange($pid);
-    $showLock      = $s1AllOrange && $s234AllOrange && !$period['is_locked'];
-
-    // Check which stages have files
     $s1Files = [];
     foreach ($s1statuses as $s1) {
-        $s1Files[$s1['account_id']] = FileRecord::hasFile($pid, 'stage1', $s1['account_id']);
+        $aid = (int)$s1['account_id'];
+        $s1Files[$aid] = isset($bulkFiles[$pid]['stage1'][$aid]);
     }
 
-    $hasStage2File = FileRecord::hasFile($pid, 'stage2');
-    $hasStage3File = FileRecord::hasFile($pid, 'stage3');
-    $hasStage4File = FileRecord::hasFile($pid, 'stage4');
+    $hasStage2File = isset($bulkFiles[$pid]['stage2']);
+    $hasStage3File = isset($bulkFiles[$pid]['stage3']);
+    $hasStage4File = isset($bulkFiles[$pid]['stage4']);
 
     // Hide future empty rows from dashboard, but always show active rows.
-    $hasActivity = periodHasActivity($s1statuses, $stageStatuses, $s1Files, $hasStage2File, $hasStage3File, $hasStage4File);
+    $hasActivity   = periodHasActivity($s1statuses, $stageStatuses, $s1Files, $hasStage2File, $hasStage3File, $hasStage4File);
     $visibleByDate = isPeriodVisibleByDate($period['period_label']);
     if (!$hasActivity && !$visibleByDate) {
         continue;
     }
 
-    $dashboardData[] = [
+    // Derive reminder / lock flags from in-memory data (no extra queries).
+    $showReminder = false;
+    foreach ($s1statuses as $s1) {
+        if (in_array($s1['status'], ['grey', 'orange'], true)) {
+            $showReminder = true;
+            break;
+        }
+    }
+
+    $s1AllOrange   = array_reduce($s1statuses,    fn($c, $s) => $c && $s['status'] === 'orange', true);
+    $s234AllOrange = array_reduce($stageStatuses, fn($c, $s) => $c && $s['status'] === 'orange', true);
+    $showLock      = $s1AllOrange && $s234AllOrange && !$period['is_locked'];
+
+    $allDashboardData[] = [
         'period'        => $period,
         's1statuses'    => $s1statuses,
         'stageStatuses' => $stageStatuses,
@@ -351,8 +359,56 @@ foreach ($periods as $period) {
     ];
 }
 
+// XLSX export uses all dashboard data (no pagination).
 if (($action ?? '') === 'dashboard_export') {
-    exportDashboardXlsx($dashboardData);
+    exportDashboardXlsx($allDashboardData);
+}
+
+// Paginate by client — 10 clients per page.
+$perPage = 10;
+$page    = max(1, (int)($_GET['page'] ?? 1));
+
+// Extract unique client IDs in display order.
+$orderedClientIds = [];
+$seenClientIds    = [];
+foreach ($allDashboardData as $data) {
+    $cid = (int)$data['period']['client_id'];
+    if (!isset($seenClientIds[$cid])) {
+        $seenClientIds[$cid] = true;
+        $orderedClientIds[]  = $cid;
+    }
+}
+
+$totalClients = count($orderedClientIds);
+$totalPages   = max(1, (int)ceil($totalClients / $perPage));
+$page         = min($page, $totalPages);
+
+$pageClientSet = array_flip(array_slice($orderedClientIds, ($page - 1) * $perPage, $perPage));
+$dashboardData = array_values(array_filter($allDashboardData, fn($d) => isset($pageClientSet[(int)$d['period']['client_id']])));
+
+// --- Reminder data (admin only) ---
+// Last reminder sent date for every client (across all pages).
+$lastReminderByClientId = [];
+if (hasRole(['admin'])) {
+    $lastReminderByClientId = LogModel::lastReminderByClients($orderedClientIds);
+
+    // Build list of unique email targets that have pending reminders, across ALL periods/pages.
+    $reminderTargets    = [];  // [['name'=>..., 'email'=>...], ...]
+    $reminderEmailsSeen = [];
+    foreach ($allDashboardData as $data) {
+        if (!$data['showReminder'] || $data['period']['is_locked']) {
+            continue;
+        }
+        $email = $data['period']['client_email'] ?? '';
+        if ($email === '' || isset($reminderEmailsSeen[$email])) {
+            continue;
+        }
+        $reminderEmailsSeen[$email] = true;
+        $reminderTargets[] = [
+            'name'  => $data['period']['client_name'],
+            'email' => $email,
+        ];
+    }
 }
 
 include BASE_PATH . '/views/dashboard.php';

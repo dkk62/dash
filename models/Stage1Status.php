@@ -54,6 +54,29 @@ class Stage1Status {
         return $stmt->fetchColumn() > 0;
     }
 
+    /**
+     * Load stage1 statuses for multiple periods in a single query.
+     * Returns [periodId => [rows]]
+     */
+    public static function bulkByPeriods(array $periodIds): array {
+        if (empty($periodIds)) return [];
+        $db = getDB();
+        $placeholders = implode(',', array_fill(0, count($periodIds), '?'));
+        $stmt = $db->prepare(
+            "SELECT s.*, a.account_name, a.bank_feed_mode
+             FROM stage1_status s
+             JOIN accounts a ON a.id = s.account_id
+             WHERE s.period_id IN ($placeholders)
+             ORDER BY s.period_id, a.account_name"
+        );
+        $stmt->execute($periodIds);
+        $result = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $result[(int)$row['period_id']][] = $row;
+        }
+        return $result;
+    }
+
     public static function pendingAccounts(int $periodId): array {
         $db = getDB();
         $stmt = $db->prepare(
