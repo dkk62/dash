@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `clients` (
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_clients_email` (`email`)
+  KEY `idx_clients_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
@@ -167,6 +167,24 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
   UNIQUE KEY `uk_token` (`token`),
   KEY `idx_email` (`email`),
   KEY `idx_expires` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- Table: notification_queue
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `notification_queue` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `target_role` VARCHAR(50) NOT NULL,
+  `stage` VARCHAR(20) NOT NULL,
+  `client_name` VARCHAR(150) NOT NULL,
+  `period_label` VARCHAR(50) NOT NULL,
+  `account_name` VARCHAR(150) DEFAULT NULL,
+  `uploaded_by` VARCHAR(100) NOT NULL,
+  `file_names` TEXT NOT NULL,
+  `queued_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `sent_at` TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_nq_unsent` (`sent_at`, `target_role`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================

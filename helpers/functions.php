@@ -157,7 +157,15 @@ function ensureDir(string $dir): void {
 /**
  * Insert a log record
  */
-function logAction(string $action, ?int $userId = null, ?int $periodId = null, ?string $stageName = null, ?int $accountId = null, ?int $clientId = null, ?array $metadata = null): void {
+function logAction(string $action, ?int $userId = null, ?int $periodId = null, ?string $stageName = null, ?int $accountId = null, int|array|null $clientIdOrMetadata = null, ?array $metadata = null): void {
+    // Backward compatibility: many call sites pass metadata as the 6th argument.
+    $clientId = null;
+    if (is_array($clientIdOrMetadata)) {
+        $metadata = $clientIdOrMetadata;
+    } else {
+        $clientId = $clientIdOrMetadata;
+    }
+
     $db = getDB();
     $stmt = $db->prepare("INSERT INTO logs (period_id, stage_name, account_id, action, user_id, client_id, ip_address, metadata) VALUES (?,?,?,?,?,?,?,?)");
     $stmt->execute([

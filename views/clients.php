@@ -4,11 +4,12 @@ ob_start();
 ?>
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-9">
         <h4><i class="bi bi-people"></i> Clients</h4>
         <table class="table table-bordered table-hover">
             <thead class="table-dark">
                 <tr>
+                    <th>SL</th>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Phone</th>
@@ -18,8 +19,10 @@ ob_start();
                 </tr>
             </thead>
             <tbody>
+            <?php $sl = 1; ?>
             <?php foreach ($clients as $c): ?>
                 <tr>
+                    <td><?= $sl++ ?></td>
                     <td><?= e($c['name']) ?></td>
                     <td><?= e($c['email']) ?></td>
                     <td><?= e($c['phone'] ?? '') ?></td>
@@ -47,13 +50,13 @@ ob_start();
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($clients)): ?>
-                <tr><td colspan="6" class="text-muted text-center">No clients yet.</td></tr>
+                <tr><td colspan="7" class="text-muted text-center">No clients yet.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <h4><?= $editClient ? 'Edit Client' : 'Add Client' ?></h4>
         <form method="POST" action="<?= e(appUrl('?action=client_save')) ?>">
             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">

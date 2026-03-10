@@ -6,7 +6,7 @@
     <title><?= e($pageTitle ?? 'Work Progress System') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="<?= e(assetUrl('css/style.css')) ?>" rel="stylesheet">
+    <link href="<?= e(assetUrl('css/style.css') . '?v=' . (@filemtime(BASE_PATH . '/public/css/style.css') ?: time())) ?>" rel="stylesheet">
 </head>
 <body>
 <?php if (isLoggedIn()): ?>
@@ -74,6 +74,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?= e(assetUrl('js/app.js')) ?>"></script>
+<script src="<?= e(assetUrl('js/app.js') . '?v=' . (@filemtime(BASE_PATH . '/public/js/app.js') ?: time())) ?>"></script>
 </body>
 </html>

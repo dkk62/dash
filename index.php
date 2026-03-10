@@ -36,8 +36,6 @@ switch ($action) {
     // Auth
     case 'login':
     case 'do_login':
-        require_once BASE_PATH . '/controllers/AuthController.php';
-        break;
     case 'logout':
         require_once BASE_PATH . '/controllers/AuthController.php';
         break;
@@ -62,6 +60,7 @@ switch ($action) {
 
     // Dashboard
     case 'dashboard':
+    case 'dashboard_export':
         require_once BASE_PATH . '/controllers/DashboardController.php';
         break;
 

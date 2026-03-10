@@ -45,6 +45,13 @@
 
 .dashboard-table .upload-form {
     margin: 0;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.dashboard-table .upload-form.is-uploading {
+    gap: 4px;
 }
 
 .dashboard-table tbody tr.group-even td {
@@ -116,6 +123,39 @@
 /* Upload button styling */
 .upload-btn {
     line-height: 1;
+}
+
+.upload-btn:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+.upload-progress {
+    width: 96px;
+    display: block;
+    text-align: center;
+}
+
+.upload-progress[hidden] {
+    display: none !important;
+}
+
+.upload-progress-label {
+    font-size: 0.62rem;
+    color: #0d6efd;
+    line-height: 1.1;
+    margin-bottom: 2px;
+}
+
+.upload-progress-track {
+    height: 8px;
+    min-width: 96px;
+    background-color: #e9ecef;
+}
+
+.upload-progress-bar {
+    font-size: 0.55rem;
+    line-height: 8px;
 }
 
 .dashboard-table .btn-sm {

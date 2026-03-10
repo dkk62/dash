@@ -3,9 +3,18 @@
 class User {
     public static function findByEmail(string $email): ?array {
         $db = getDB();
-        $stmt = $db->prepare("SELECT * FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        return $stmt->fetch() ?: null;
+        try {
+            $stmt = $db->prepare("SELECT * FROM users WHERE email = ?");
+            $stmt->execute([$email]);
+            return $stmt->fetch() ?: null;
+        } catch (PDOException $e) {
+            // If the users table is missing, allow auth flow to continue and fail gracefully.
+            if ($e->getCode() === '42S02') {
+                error_log('User lookup failed: users table is missing.');
+                return null;
+            }
+            throw $e;
+        }
     }
 
     public static function findById(int $id): ?array {

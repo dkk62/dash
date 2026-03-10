@@ -6,6 +6,7 @@ require_once BASE_PATH . '/models/Stage1Status.php';
 require_once BASE_PATH . '/models/StageStatus.php';
 require_once BASE_PATH . '/models/FileRecord.php';
 require_once BASE_PATH . '/models/User.php';
+require_once BASE_PATH . '/models/NotificationQueue.php';
 
 function uploadNotifyTargetRole(string $stage): ?string {
     return match ($stage) {
@@ -17,92 +18,60 @@ function uploadNotifyTargetRole(string $stage): ?string {
     };
 }
 
-function sendStageUploadNotifications(string $stage, array $period, ?int $accountId, array $uploadedOriginalNames, int $uploadedByUserId): array {
+function queueStageUploadNotification(string $stage, array $period, ?int $accountId, array $uploadedOriginalNames, int $uploadedByUserId): void {
     $targetRole = uploadNotifyTargetRole($stage);
     if ($targetRole === null) {
-        return ['target_role' => null, 'attempted' => 0, 'sent' => 0];
+        return;
     }
 
-    $recipients = User::byRole($targetRole);
-    if (empty($recipients)) {
-        return ['target_role' => $targetRole, 'attempted' => 0, 'sent' => 0];
-    }
-
-    $uploader = User::findById($uploadedByUserId);
-    $client = Client::find((int) $period['client_id']);
+    $client      = Client::find((int) $period['client_id']);
+    $uploader    = User::findById($uploadedByUserId);
     $accountName = null;
     if ($stage === 'stage1' && $accountId) {
         $acc = Account::find($accountId);
+        // Skip automatic bank feed accounts — their uploads are system-driven
+        if (($acc['bank_feed_mode'] ?? 'manual') === 'automatic') {
+            return;
+        }
         $accountName = $acc['account_name'] ?? null;
     }
 
-    $subject = 'Stage Upload Alert: ' . strtoupper($stage) . ' - ' . ($period['period_label'] ?? '');
-    $body = "A new upload has been completed.\n\n"
-          . "Stage: {$stage}\n"
-          . "Client: " . ($client['name'] ?? 'N/A') . "\n"
-          . "Period: " . ($period['period_label'] ?? 'N/A') . "\n"
-          . ($accountName ? "Account: {$accountName}\n" : '')
-          . "Uploaded by: " . ($uploader['name'] ?? 'User ID ' . $uploadedByUserId) . "\n"
-          . "Files uploaded: " . count($uploadedOriginalNames) . "\n\n"
-          . "File list:\n- " . implode("\n- ", $uploadedOriginalNames) . "\n\n"
-          . "Please review the dashboard for next workflow action.";
-
-    $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
-    if (!file_exists($mailerPath)) {
-        logEmailFailure('stage_upload_notify', 'PHPMailer not found', [
-            'stage' => $stage,
-            'period_id' => $period['id'] ?? null,
-            'target_role' => $targetRole,
-            'mailer_path' => $mailerPath,
-        ]);
-        return ['target_role' => $targetRole, 'attempted' => count($recipients), 'sent' => 0];
-    }
-
-    require_once BASE_PATH . '/vendor/PHPMailer/src/Exception.php';
-    require_once BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
-    require_once BASE_PATH . '/vendor/PHPMailer/src/SMTP.php';
-
-    $sent = 0;
-    foreach ($recipients as $r) {
-        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host       = SMTP_HOST;
-            $mail->SMTPAuth   = true;
-            $mail->Username   = SMTP_USER;
-            $mail->Password   = SMTP_PASS;
-            if (SMTP_SECURE === 'ssl') {
-                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-            } elseif (SMTP_SECURE === 'tls') {
-                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            } else {
-                $mail->SMTPSecure = '';
-            }
-            $mail->Port       = SMTP_PORT;
-            $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
-            $mail->addAddress($r['email'], $r['name']);
-            $mail->Subject = $subject;
-            $mail->Body    = $body;
-            $mail->send();
-            $sent++;
-        } catch (\Exception $e) {
-            logEmailFailure('stage_upload_notify', $e->getMessage(), [
-                'stage' => $stage,
-                'period_id' => $period['id'] ?? null,
-                'target_role' => $targetRole,
-                'recipient_email' => $r['email'] ?? null,
-                'recipient_name' => $r['name'] ?? null,
-            ]);
-            continue;
-        }
-    }
-
-    return ['target_role' => $targetRole, 'attempted' => count($recipients), 'sent' => $sent];
+    NotificationQueue::enqueue(
+        $targetRole,
+        $stage,
+        $client['name'] ?? 'N/A',
+        $period['period_label'] ?? 'N/A',
+        $accountName,
+        $uploader['name'] ?? ('User ID ' . $uploadedByUserId),
+        $uploadedOriginalNames
+    );
 }
 
 // ---- UPLOAD ----
 if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrf();
+
+    $isAjax = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest';
+    $failUpload = function (string $message, int $statusCode = 400) use ($isAjax): void {
+        if ($isAjax) {
+            http_response_code($statusCode);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $message]);
+            exit;
+        }
+        setFlash('danger', $message);
+        redirect('?action=dashboard');
+    };
+
+    $successUpload = function (string $message) use ($isAjax): void {
+        if ($isAjax) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'message' => $message]);
+            exit;
+        }
+        setFlash('success', $message);
+        redirect('?action=dashboard');
+    };
 
     $periodId  = (int) ($_POST['period_id'] ?? 0);
     $stage     = $_POST['stage'] ?? '';
@@ -110,47 +79,38 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Validate stage name
     if (!in_array($stage, ['stage1', 'stage2', 'stage3', 'stage4'])) {
-        setFlash('danger', 'Invalid stage.');
-        redirect('?action=dashboard');
+        $failUpload('Invalid stage.');
     }
 
     // Check upload role
     if (!hasRole(stageUploadRoles($stage))) {
-        http_response_code(403);
-        setFlash('danger', 'You do not have permission to upload to this stage.');
-        redirect('?action=dashboard');
+        $failUpload('You do not have permission to upload to this stage.', 403);
     }
 
     // Clients can only upload to stage1
     if (currentRole() === 'client' && $stage !== 'stage1') {
-        http_response_code(403);
-        setFlash('danger', 'Clients can only upload to Stage 1.');
-        redirect('?action=dashboard');
+        $failUpload('Clients can only upload to Stage 1.', 403);
     }
 
     // Stage 1 needs account_id
     if ($stage === 'stage1' && !$accountId) {
-        setFlash('danger', 'Account is required for Stage 1.');
-        redirect('?action=dashboard');
+        $failUpload('Account is required for Stage 1.');
     }
 
     // Load period
     $period = Period::find($periodId);
     if (!$period) {
-        setFlash('danger', 'Period not found.');
-        redirect('?action=dashboard');
+        $failUpload('Period not found.');
     }
 
     // Check locked
     if ($period['is_locked']) {
-        setFlash('danger', 'This period is locked. Uploads are disabled.');
-        redirect('?action=dashboard');
+        $failUpload('This period is locked. Uploads are disabled.');
     }
 
     // Check multi-file upload payload
     if (!isset($_FILES['files']) || !is_array($_FILES['files']['name'])) {
-        setFlash('danger', 'Please select at least one file.');
-        redirect('?action=dashboard');
+        $failUpload('Please select at least one file.');
     }
 
     $fileCount = count($_FILES['files']['name']);
@@ -161,8 +121,7 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     if (empty($validIndexes)) {
-        setFlash('danger', 'No valid files selected for upload.');
-        redirect('?action=dashboard');
+        $failUpload('No valid files selected for upload.');
     }
 
     $clientId = $period['client_id'];
@@ -195,8 +154,7 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($uploadedOriginalNames)) {
-        setFlash('danger', 'Upload failed: none of the selected files could be saved.');
-        redirect('?action=dashboard');
+        $failUpload('Upload failed: none of the selected files could be saved.');
     }
 
     // Update LED → green
@@ -222,19 +180,18 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         FileRecord::deleteForStage($periodId, $ds);
     }
 
-    $mailStats = sendStageUploadNotifications($stage, $period, $accountId, $uploadedOriginalNames, $userId);
+    $mailStats = ['target_role' => uploadNotifyTargetRole($stage), 'queued' => 1];
+    queueStageUploadNotification($stage, $period, $accountId, $uploadedOriginalNames, $userId);
 
     // Log
     logAction($isReupload ? 'reupload' : 'upload', $userId, $periodId, $stage, $accountId, [
         'file_count' => count($uploadedOriginalNames),
         'filenames' => $uploadedOriginalNames,
         'notify_target_role' => $mailStats['target_role'],
-        'notify_attempted' => $mailStats['attempted'],
-        'notify_sent' => $mailStats['sent'],
+        'notify_queued' => $mailStats['queued'],
     ]);
 
-    setFlash('success', ucfirst($stage) . ' upload complete: ' . count($uploadedOriginalNames) . ' file(s).');
-    redirect('?action=dashboard');
+    $successUpload(ucfirst($stage) . ' upload complete: ' . count($uploadedOriginalNames) . ' file(s).');
 }
 
 // ---- DOWNLOAD ----

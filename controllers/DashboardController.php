@@ -78,16 +78,226 @@ function periodHasActivity(array $s1statuses, array $stageStatuses, array $s1Fil
     return false;
 }
 
+function xlsxColName(int $index): string {
+    $name = '';
+    while ($index > 0) {
+        $mod = ($index - 1) % 26;
+        $name = chr(65 + $mod) . $name;
+        $index = intdiv($index - 1, 26);
+    }
+    return $name;
+}
+
+function xlsxEsc(string $value): string {
+    return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+}
+
+function dashboardLedStyle(string $status): int {
+    return match ($status) {
+        'red' => 3,
+        'orange' => 4,
+        'green' => 5,
+        default => 6,
+    };
+}
+
+function buildDashboardExportRows(array $dashboardData): array {
+    $rows = [[
+        'CLIENT',
+        'PERIOD',
+        'ACCOUNT',
+        'STAGE 1',
+        'STAGE 2',
+        'STAGE 3',
+        'STAGE 4',
+        'LOCKED',
+    ]];
+
+    foreach ($dashboardData as $data) {
+        $period = $data['period'];
+        $locked = (bool) $period['is_locked'];
+        $s1rows = $data['s1statuses'];
+        $stages = $data['stageStatuses'];
+        $groupRows = max(1, count($s1rows));
+
+        for ($idx = 0; $idx < $groupRows; $idx++) {
+            $s1 = $s1rows[$idx] ?? null;
+            $accountName = '-';
+            $stage1Status = 'grey';
+            if ($s1) {
+                $accountName = $s1['account_name'] . (((($s1['bank_feed_mode'] ?? 'manual') === 'automatic') ? ' (auto)' : ''));
+                $stage1Status = (string) ($s1['status'] ?? 'grey');
+            }
+
+            $rows[] = [
+                (string) $period['client_name'],
+                (string) $period['period_label'] . ($locked ? ' Locked' : ''),
+                (string) $accountName,
+                ['type' => 'led', 'status' => $stage1Status],
+                ['type' => 'led', 'status' => (string) (($stages['stage2']['status'] ?? 'grey'))],
+                ['type' => 'led', 'status' => (string) (($stages['stage3']['status'] ?? 'grey'))],
+                ['type' => 'led', 'status' => (string) (($stages['stage4']['status'] ?? 'grey'))],
+                $locked ? '🔒' : '',
+            ];
+        }
+    }
+
+    return $rows;
+}
+
+function exportDashboardXlsx(array $dashboardData): void {
+    if (!class_exists('ZipArchive')) {
+        http_response_code(500);
+        echo 'XLSX export is unavailable because the PHP Zip extension is not enabled.';
+        exit;
+    }
+
+    $rows = buildDashboardExportRows($dashboardData);
+    $maxCol = 8;
+    $maxRow = count($rows);
+    $dimension = 'A1:' . xlsxColName($maxCol) . $maxRow;
+
+    $sheetRowsXml = '';
+    foreach ($rows as $rowIndex => $row) {
+        $r = $rowIndex + 1;
+        $rowAttrs = ($rowIndex === 0) ? ' ht="22" customHeight="1"' : '';
+        $sheetRowsXml .= '<row r="' . $r . '"' . $rowAttrs . '>';
+
+        foreach ($row as $colIndex => $cell) {
+            $cName = xlsxColName($colIndex + 1) . $r;
+            $style = 0;
+            $value = '';
+
+            if ($rowIndex === 0) {
+                $style = 1;
+                $value = (string) $cell;
+            } elseif (is_array($cell) && ($cell['type'] ?? '') === 'led') {
+                $style = dashboardLedStyle((string) ($cell['status'] ?? 'grey'));
+                $value = '●';
+            } else {
+                $value = (string) $cell;
+            }
+
+            $sheetRowsXml .= '<c r="' . $cName . '" t="inlineStr" s="' . $style . '"><is><t>' . xlsxEsc($value) . '</t></is></c>';
+        }
+
+        $sheetRowsXml .= '</row>';
+    }
+
+    $sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        . '<dimension ref="' . $dimension . '"/>'
+        . '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+        . '<sheetFormatPr defaultRowHeight="18" customHeight="1"/>'
+        . '<cols>'
+        . '<col min="1" max="1" width="22" customWidth="1"/>'
+        . '<col min="2" max="2" width="16" customWidth="1"/>'
+        . '<col min="3" max="3" width="26" customWidth="1"/>'
+        . '<col min="4" max="8" width="12" customWidth="1"/>'
+        . '</cols>'
+        . '<sheetData>' . $sheetRowsXml . '</sheetData>'
+        . '</worksheet>';
+
+    $stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        . '<fonts count="6">'
+        . '<font><sz val="11"/><name val="Calibri"/></font>'
+        . '<font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>'
+        . '<font><sz val="20"/><color rgb="FFC62828"/><name val="Calibri"/></font>'
+        . '<font><sz val="20"/><color rgb="FFEF6C00"/><name val="Calibri"/></font>'
+        . '<font><sz val="20"/><color rgb="FF2E7D32"/><name val="Calibri"/></font>'
+        . '<font><sz val="20"/><color rgb="FF9E9E9E"/><name val="Calibri"/></font>'
+        . '</fonts>'
+        . '<fills count="2">'
+        . '<fill><patternFill patternType="none"/></fill>'
+        . '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/><bgColor indexed="64"/></patternFill></fill>'
+        . '</fills>'
+        . '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thick"><color rgb="FF000000"/></left><right style="thick"><color rgb="FF000000"/></right><top style="thick"><color rgb="FF000000"/></top><bottom style="thick"><color rgb="FF000000"/></bottom><diagonal/></border></borders>'
+        . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        . '<cellXfs count="7">'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="1" fillId="1" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '<xf numFmtId="0" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+        . '</cellXfs>'
+        . '</styleSheet>';
+
+    $workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        . '<sheets><sheet name="Dashboard" sheetId="1" r:id="rId1"/></sheets>'
+        . '</workbook>';
+
+    $workbookRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        . '</Relationships>';
+
+    $relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        . '</Relationships>';
+
+    $contentTypesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        . '<Default Extension="xml" ContentType="application/xml"/>'
+        . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        . '</Types>';
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'dash_xlsx_');
+    if ($tmpFile === false) {
+        http_response_code(500);
+        echo 'Unable to create temporary file for export.';
+        exit;
+    }
+
+    $zip = new ZipArchive();
+    if ($zip->open($tmpFile, ZipArchive::OVERWRITE) !== true) {
+        @unlink($tmpFile);
+        http_response_code(500);
+        echo 'Unable to create XLSX export file.';
+        exit;
+    }
+
+    $zip->addFromString('[Content_Types].xml', $contentTypesXml);
+    $zip->addFromString('_rels/.rels', $relsXml);
+    $zip->addFromString('xl/workbook.xml', $workbookXml);
+    $zip->addFromString('xl/_rels/workbook.xml.rels', $workbookRelsXml);
+    $zip->addFromString('xl/worksheets/sheet1.xml', $sheetXml);
+    $zip->addFromString('xl/styles.xml', $stylesXml);
+    $zip->close();
+
+    $fileName = 'work_progress_dashboard_' . date('Ymd_His') . '.xlsx';
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $fileName . '"');
+    header('Content-Length: ' . filesize($tmpFile));
+    header('Cache-Control: max-age=0, no-cache, no-store, must-revalidate');
+
+    readfile($tmpFile);
+    @unlink($tmpFile);
+    exit;
+}
+
 // Load all periods with client info
 $periods = Period::allWithClient();
 sortPeriodsChronologically($periods);
 
 // Filter periods if user is a client
-if (currentRole() === 'client' && !empty($_SESSION['client_id'])) {
-    $clientId = (int) $_SESSION['client_id'];
-    $periods = array_filter($periods, function($p) use ($clientId) {
-        return (int) $p['client_id'] === $clientId;
-    });
+if (currentRole() === 'client') {
+    $clientIds = !empty($_SESSION['client_ids'])
+        ? array_map('intval', (array) $_SESSION['client_ids'])
+        : (!empty($_SESSION['client_id']) ? [(int) $_SESSION['client_id']] : []);
+    if (!empty($clientIds)) {
+        $periods = array_filter($periods, function($p) use ($clientIds) {
+            return in_array((int) $p['client_id'], $clientIds, true);
+        });
+    }
 }
 
 // Build dashboard data
@@ -139,6 +349,10 @@ foreach ($periods as $period) {
         'hasStage3File' => $hasStage3File,
         'hasStage4File' => $hasStage4File,
     ];
+}
+
+if (($action ?? '') === 'dashboard_export') {
+    exportDashboardXlsx($dashboardData);
 }
 
 include BASE_PATH . '/views/dashboard.php';

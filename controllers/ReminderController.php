@@ -18,28 +18,43 @@ if (!$period) {
 }
 
 $client = Client::find($period['client_id']);
-$pending = Stage1Status::pendingAccounts($periodId);
 
-if (empty($pending)) {
-    setFlash('info', 'No pending accounts — reminder not needed.');
+// Find all clients sharing this email and build one combined email
+$allClients = Client::findAllByEmail($client['email']);
+
+$sections = '';
+foreach ($allClients as $sharedClient) {
+    $clientPeriods = Period::byClient((int) $sharedClient['id']);
+    $clientSection = '';
+    foreach ($clientPeriods as $p) {
+        if ($p['is_locked']) {
+            continue;
+        }
+        $pending = Stage1Status::pendingAccounts((int) $p['id']);
+        if (empty($pending)) {
+            continue;
+        }
+        $clientSection .= "Period: {$p['period_label']}\n";
+        foreach ($pending as $acc) {
+            $clientSection .= "{$acc['account_name']}: Pending\n";
+        }
+        $clientSection .= "\n";
+    }
+    if ($clientSection !== '') {
+        $sections .= "Client: {$sharedClient['name']}\n" . $clientSection;
+    }
+}
+
+if ($sections === '') {
+    setFlash('info', 'No pending bank statements — reminder not needed.');
     redirect('?action=dashboard');
 }
 
-// Build email
-$accountList = '';
-foreach ($pending as $p) {
-    $statusLabel = $p['status'] === 'grey' ? 'Not uploaded' : 'Downloaded (awaiting re-upload)';
-    $accountList .= "  - {$p['account_name']}: {$statusLabel}\n";
-}
-
-$subject = "Reminder: Pending uploads for {$client['name']} - {$period['period_label']}";
+$subject = 'Reminder: Pending bank statements - ' . date('m/d/Y');
 $body    = "Dear Client,\n\n"
-         . "This is a reminder regarding pending uploads for:\n"
-         . "Client: {$client['name']}\n"
-         . "Period: {$period['period_label']}\n\n"
-         . "The following accounts require action:\n"
-         . $accountList . "\n"
-         . "Please upload the required files at your earliest convenience.\n\n"
+         . "This is a reminder regarding pending bank statements for:\n\n"
+         . $sections
+         . "Please send us the required files at your earliest convenience.\n\n"
          . "Regards,\nWork Progress System";
 
 // Send via PHPMailer (Brevo SMTP)
@@ -67,7 +82,7 @@ if (file_exists($mailerPath)) {
         $mail->Port       = SMTP_PORT;
 
         $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
-        $mail->addAddress($client['email'], $client['name']);
+        $mail->addAddress($client['email']);
         $mail->Subject = $subject;
         $mail->Body    = $body;
 
@@ -92,8 +107,7 @@ if (file_exists($mailerPath)) {
 // Log action regardless
 logAction('reminder_sent', $_SESSION['user_id'], $periodId, null, null, [
     'client_email' => $client['email'],
-    'pending_accounts' => array_column($pending, 'account_name'),
-    'email_sent' => $emailSent,
+    'email_sent'   => $emailSent,
 ]);
 
 if ($emailSent) {

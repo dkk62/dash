@@ -16,6 +16,7 @@ if ($action === 'logout') {
     redirect('?action=login');
 }
 
+
 if ($action === 'do_login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrf();
     $email = trim($_POST['email'] ?? '');
@@ -53,17 +54,27 @@ if ($action === 'do_login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('?action=dashboard');
     }
 
-    // Check clients table
-    $client = Client::findByEmail($email);
-    if ($client && $client['password_hash'] && password_verify($password, $client['password_hash'])) {
+    // Check clients table – collect all matching clients for this email
+    $matchedClients = [];
+    foreach (Client::findAllByEmail($email) as $c) {
+        if ($c['password_hash'] && password_verify($password, $c['password_hash'])) {
+            $matchedClients[] = $c;
+        }
+    }
+
+    if (count($matchedClients) >= 1) {
+        $primary = $matchedClients[0];
         LoginAttempt::clear($email, $ipAddress);
-        $_SESSION['user_id']    = $client['id'];
-        $_SESSION['user_name']  = $client['name'];
-        $_SESSION['user_email'] = $client['email'];
+        $_SESSION['user_id']    = $primary['id'];
+        $_SESSION['user_name']  = $primary['name'];
+        $_SESSION['user_email'] = $primary['email'];
         $_SESSION['user_role']  = 'client';
         $_SESSION['user_type']  = 'client';
-        $_SESSION['client_id']  = $client['id'];
-        logAction('login', null, null, null, null, $client['id']);
+        $_SESSION['client_id']  = $primary['id'];
+        $_SESSION['client_ids'] = array_column($matchedClients, 'id');
+        foreach ($matchedClients as $mc) {
+            logAction('login', null, null, null, null, $mc['id']);
+        }
         redirect('?action=dashboard');
     }
 

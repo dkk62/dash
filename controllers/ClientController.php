@@ -19,14 +19,18 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $cycleType = 'monthly';
     }
 
-    if ($id > 0) {
-        // Update existing - password is optional
-        Client::update($id, $name, $email, $phone, $cycleType, $password ?: null);
-        setFlash('success', 'Client updated.');
-    } else {
-        // Create new - password is optional
-        Client::create($name, $email, $phone, $cycleType, $password ?: null);
-        setFlash('success', 'Client created.');
+    try {
+        if ($id > 0) {
+            // Update existing - password is optional
+            Client::update($id, $name, $email, $phone, $cycleType, $password ?: null);
+            setFlash('success', 'Client updated.');
+        } else {
+            // Create new - password is optional
+            Client::create($name, $email, $phone, $cycleType, $password ?: null);
+            setFlash('success', 'Client created.');
+        }
+    } catch (RuntimeException $e) {
+        setFlash('danger', $e->getMessage());
     }
     redirect('?action=clients');
 }

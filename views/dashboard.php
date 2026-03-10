@@ -4,7 +4,12 @@ $role = currentRole();
 ob_start();
 ?>
 
-<h4 class="mb-3"><i class="bi bi-grid-3x3"></i> Work Progress Dashboard</h4>
+<div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+    <h4 class="mb-0"><i class="bi bi-grid-3x3"></i> Work Progress Dashboard - <?= date('m/d/Y') ?></h4>
+    <a href="<?= e(appUrl('?action=dashboard_export')) ?>" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-file-earmark-excel"></i> Export .xlsx
+    </a>
+</div>
 
 <?php if (empty($dashboardData)): ?>
     <div class="alert alert-info">
@@ -27,7 +32,7 @@ ob_start();
             <th class="text-center">Stage 3<br><small>Reclassified</small></th>
             <th class="text-center">Stage 4<br><small>Reclass. Complete</small></th>
             <th class="text-center">Reminder</th>
-            <th class="text-center">Lock</th>
+            <th class="text-center">Locked</th>
         </tr>
     </thead>
     <tbody>
@@ -55,7 +60,7 @@ ob_start();
             <td rowspan="<?= $groupRows ?>" class="align-middle period-cell">
                 <?= e($period['period_label']) ?>
                 <?php if ($locked): ?>
-                    <br><span class="badge bg-danger"><i class="bi bi-lock-fill"></i> LOCKED</span>
+                    <br><span class="badge bg-danger"><i class="bi bi-lock-fill"></i> Locked</span>
                 <?php endif; ?>
             </td>
             <?php endif; ?>
@@ -83,6 +88,12 @@ ob_start();
                                 <img src="<?= e(assetUrl('img/upload.png')) ?>" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                                 <i class="bi bi-cloud-arrow-up action-icon-fallback upload-icon-fallback" style="display:none;"></i>
                             </button>
+                            <div class="upload-progress" hidden>
+                                <div class="upload-progress-label">Uploading... <span class="upload-progress-percent">0%</span></div>
+                                <div class="progress upload-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                    <div class="progress-bar upload-progress-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
                         </form>
                     <?php endif; ?>
                     <?php $s1HasFile = $data['s1Files'][$s1['account_id']] ?? false; ?>
@@ -121,6 +132,12 @@ ob_start();
                                     <img src="<?= e(assetUrl('img/upload.png')) ?>" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
                                     <i class="bi bi-cloud-arrow-up action-icon-fallback upload-icon-fallback" style="display:none;"></i>
                                 </button>
+                                <div class="upload-progress" hidden>
+                                    <div class="upload-progress-label">Uploading... <span class="upload-progress-percent">0%</span></div>
+                                    <div class="progress upload-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                        <div class="progress-bar upload-progress-bar" style="width: 0%"></div>
+                                    </div>
+                                </div>
                             </form>
                         <?php endif; ?>
                         <?php if ($hasFile && hasRole(stageDownloadRoles($sn))): ?>
