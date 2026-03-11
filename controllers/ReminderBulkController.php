@@ -54,6 +54,22 @@ if (empty($emailTargets)) {
     redirect('?action=dashboard');
 }
 
+// Filter to only the emails the admin explicitly selected in the modal.
+$selectedEmails = $_POST['selected_emails'] ?? [];
+if (!empty($selectedEmails)) {
+    // Whitelist: only keep emails that are valid pending targets.
+    $selectedEmails = array_filter(
+        array_map('strval', (array)$selectedEmails),
+        fn($e) => isset($emailTargets[$e])
+    );
+    $emailTargets = array_intersect_key($emailTargets, array_flip($selectedEmails));
+}
+
+if (empty($emailTargets)) {
+    setFlash('info', 'No clients selected — no reminders sent.');
+    redirect('?action=dashboard');
+}
+
 // Load PHPMailer once.
 $mailerAvailable = false;
 $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';

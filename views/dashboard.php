@@ -280,32 +280,89 @@ ob_start();
 <?php endif; ?>
 
 <?php if (hasRole(['admin']) && !empty($reminderTargets)): ?>
+<style>
+.reminder-modal-dialog { max-width: 95vw; }
+@media (min-width: 768px) { .reminder-modal-dialog { max-width: 66vw; } }
+</style>
 <!-- Send Reminder Confirmation Modal -->
 <div class="modal fade" id="reminderModal" tabindex="-1" aria-labelledby="reminderModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered reminder-modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="reminderModalLabel"><i class="bi bi-bell"></i> Confirm Send Reminders</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form method="POST" action="<?= e(appUrl('?action=reminder_bulk')) ?>">
+      <form method="POST" action="<?= e(appUrl('?action=reminder_bulk')) ?>" id="reminderForm">
         <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
         <div class="modal-body">
-          <p class="mb-2">A reminder email will be sent to the following <?= count($reminderTargets) === 1 ? 'client' : count($reminderTargets) . ' clients' ?>:</p>
-          <ul class="list-group list-group-flush mb-1">
+          <p class="mb-2">Select the clients to whom you want to send a reminder email:</p>
+          <div class="mb-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="reminderSelectAll" checked>
+              <label class="form-check-label fw-semibold" for="reminderSelectAll">Select All</label>
+            </div>
+          </div>
+          <table class="table table-sm table-bordered align-middle mb-1" id="reminderClientList">
+            <thead class="table-light">
+              <tr>
+                <th style="width:2rem;"></th>
+                <th>Client</th>
+                <th>Email</th>
+                <th class="text-nowrap">Last Reminder</th>
+              </tr>
+            </thead>
+            <tbody>
             <?php foreach ($reminderTargets as $t): ?>
-            <li class="list-group-item px-0 py-1">
-              <span class="fw-semibold"><?= e($t['name']) ?></span>
-              <small class="text-muted ms-2"><?= e($t['email']) ?></small>
-            </li>
+            <tr>
+              <td class="text-center">
+                <input class="form-check-input reminder-client-check" type="checkbox"
+                       name="selected_emails[]" value="<?= e($t['email']) ?>"
+                       id="rc_<?= e(md5($t['email'])) ?>" checked>
+              </td>
+              <td>
+                <label class="form-check-label fw-semibold" for="rc_<?= e(md5($t['email'])) ?>"><?= e($t['name']) ?></label>
+              </td>
+              <td><small class="text-muted"><?= e($t['email']) ?></small></td>
+              <td class="text-nowrap">
+                <small class="text-muted">
+                  <?= $t['last_reminder'] ? date('m/d/Y', strtotime($t['last_reminder'])) : '<span class="fst-italic">Never</span>' ?>
+                </small>
+              </td>
+            </tr>
             <?php endforeach; ?>
-          </ul>
+            </tbody>
+          </table>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-warning"><i class="bi bi-send"></i> Send Reminders</button>
+          <button type="submit" class="btn btn-warning" id="reminderSubmitBtn"><i class="bi bi-send"></i> Send Reminders</button>
         </div>
       </form>
+      <script>
+      (function () {
+        const selectAll   = document.getElementById('reminderSelectAll');
+        const checks      = () => document.querySelectorAll('.reminder-client-check');
+        const submitBtn   = document.getElementById('reminderSubmitBtn');
+
+        function syncSubmitBtn() {
+          const anyChecked = [...checks()].some(c => c.checked);
+          submitBtn.disabled = !anyChecked;
+        }
+
+        selectAll.addEventListener('change', function () {
+          checks().forEach(c => { c.checked = this.checked; });
+          syncSubmitBtn();
+        });
+
+        document.getElementById('reminderClientList').addEventListener('change', function () {
+          const all  = [...checks()];
+          const checked = all.filter(c => c.checked);
+          selectAll.checked       = checked.length === all.length;
+          selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+          syncSubmitBtn();
+        });
+      })();
+      </script>
     </div>
   </div>
 </div>

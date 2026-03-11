@@ -404,9 +404,11 @@ if (hasRole(['admin'])) {
             continue;
         }
         $reminderEmailsSeen[$email] = true;
+        $cid = (int)$data['period']['client_id'];
         $reminderTargets[] = [
-            'name'  => $data['period']['client_name'],
-            'email' => $email,
+            'name'          => $data['period']['client_name'],
+            'email'         => $email,
+            'last_reminder' => $lastReminderByClientId[$cid] ?? null,
         ];
     }
 }
