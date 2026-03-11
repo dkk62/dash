@@ -140,7 +140,3 @@ The dashboard table includes a **Last Reminder** column (visible to admins only)
 6. **Admin** locks the period once all stages are complete (all orange)
 
 
-Name	Email			Role		Created	Actions		Password
-Admin	info@taxcheapo.com	admin		2026-03-08 09:07:08	Star@2026#
-Deepak	support@taxcheapo.com	processor1	2026-03-08 09:23:12	Star@2026#
-Willie	tax@taxcheapo.com	processor0	2026-03-08 09:23:12     Star@2026#
