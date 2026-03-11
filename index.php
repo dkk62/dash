@@ -116,6 +116,7 @@ switch ($action) {
 
     // Logs
     case 'logs':
+    case 'clear_logs':
         requireRole(['admin']);
         require_once BASE_PATH . '/controllers/LogController.php';
         break;

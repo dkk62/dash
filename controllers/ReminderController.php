@@ -25,24 +25,38 @@ $allClients = Client::findAllByEmail($client['email']);
 $sections = '';
 foreach ($allClients as $sharedClient) {
     $clientPeriods = Period::byClient((int) $sharedClient['id']);
-    $clientSection = '';
+    // Sort oldest-first so the email reads chronologically.
+    usort($clientPeriods, function (array $a, array $b): int {
+        $ta = periodLabelSortTimestamp($a['period_label'], $a['created_at'] ?? null);
+        $tb = periodLabelSortTimestamp($b['period_label'], $b['created_at'] ?? null);
+        return $ta <=> $tb;
+    });
+    // Build account => [period_labels] map for past pending periods.
+    $accountPeriods = [];
     foreach ($clientPeriods as $p) {
         if ($p['is_locked']) {
             continue;
         }
-        $pending = Stage1Status::pendingAccounts((int) $p['id']);
-        if (empty($pending)) {
+        if (!isPeriodBeforeCurrentPeriod($p['period_label'])) {
             continue;
         }
-        $clientSection .= "Period: {$p['period_label']}\n";
+        $pending = Stage1Status::pendingAccounts((int) $p['id']);
         foreach ($pending as $acc) {
-            $clientSection .= "{$acc['account_name']}: Pending\n";
+            $accountPeriods[$acc['account_name']][] = $p['period_label'];
+        }
+    }
+    if (empty($accountPeriods)) {
+        continue;
+    }
+    $clientSection = '';
+    foreach ($accountPeriods as $accountName => $periodLabels) {
+        $clientSection .= "Account: {$accountName}: Pending\n";
+        foreach ($periodLabels as $label) {
+            $clientSection .= "Period: {$label}\n";
         }
         $clientSection .= "\n";
     }
-    if ($clientSection !== '') {
-        $sections .= "Client: {$sharedClient['name']}\n" . $clientSection;
-    }
+    $sections .= "Client: {$sharedClient['name']}\n" . $clientSection;
 }
 
 if ($sections === '') {
@@ -55,7 +69,7 @@ $body    = "Dear Client,\n\n"
          . "This is a reminder regarding pending bank statements for:\n\n"
          . $sections
          . "Please send us the required files at your earliest convenience.\n\n"
-         . "Regards,\nWork Progress System";
+         . "Regards,\nTaxCheapo Bookkeeping Work Progress System";
 
 // Send via PHPMailer (Brevo SMTP)
 $emailSent = false;
@@ -72,6 +86,7 @@ if (file_exists($mailerPath)) {
         $mail->SMTPAuth   = true;
         $mail->Username   = SMTP_USER;
         $mail->Password   = SMTP_PASS;
+        $mail->Timeout    = 30;
         if (SMTP_SECURE === 'ssl') {
             $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
         } elseif (SMTP_SECURE === 'tls') {
@@ -82,13 +97,14 @@ if (file_exists($mailerPath)) {
         $mail->Port       = SMTP_PORT;
 
         $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
         $mail->addAddress($client['email']);
         $mail->Subject = $subject;
         $mail->Body    = $body;
 
         $mail->send();
         $emailSent = true;
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
         logEmailFailure('reminder_send', $e->getMessage(), [
             'client_email' => $client['email'] ?? null,
             'period_id' => $periodId,

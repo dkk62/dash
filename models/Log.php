@@ -50,4 +50,11 @@ class LogModel {
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
+
+    public static function clearAll(): int {
+        $db = getDB();
+        $stmt = $db->prepare("DELETE FROM logs");
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
 }

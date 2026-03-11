@@ -20,6 +20,10 @@ foreach ($periods as $period) {
     if ($period['is_locked']) {
         continue;
     }
+    // Only remind for periods strictly before the current month.
+    if (!isPeriodBeforeCurrentPeriod($period['period_label'])) {
+        continue;
+    }
     $pid       = (int)$period['id'];
     $email     = $period['client_email'] ?? '';
     $clientId  = (int)$period['client_id'];
@@ -31,7 +35,7 @@ foreach ($periods as $period) {
     $s1statuses = Stage1Status::byPeriod($pid);
     $hasPending = false;
     foreach ($s1statuses as $s1) {
-        if (in_array($s1['status'], ['grey', 'orange'], true)) {
+        if ($s1['status'] === 'grey') {
             $hasPending = true;
             break;
         }
@@ -90,24 +94,38 @@ foreach ($emailTargets as $email => $target) {
     $sections = '';
     foreach ($allClients as $sharedClient) {
         $clientPeriods = Period::byClient((int)$sharedClient['id']);
-        $clientSection = '';
+        // Sort oldest-first so the email reads chronologically.
+        usort($clientPeriods, function (array $a, array $b): int {
+            $ta = periodLabelSortTimestamp($a['period_label'], $a['created_at'] ?? null);
+            $tb = periodLabelSortTimestamp($b['period_label'], $b['created_at'] ?? null);
+            return $ta <=> $tb;
+        });
+        // Build account => [period_labels] map for past pending periods.
+        $accountPeriods = [];
         foreach ($clientPeriods as $p) {
             if ($p['is_locked']) {
                 continue;
             }
-            $pending = Stage1Status::pendingAccounts((int)$p['id']);
-            if (empty($pending)) {
+            if (!isPeriodBeforeCurrentPeriod($p['period_label'])) {
                 continue;
             }
-            $clientSection .= "Period: {$p['period_label']}\n";
+            $pending = Stage1Status::pendingAccounts((int)$p['id']);
             foreach ($pending as $acc) {
-                $clientSection .= "{$acc['account_name']}: Pending\n";
+                $accountPeriods[$acc['account_name']][] = $p['period_label'];
+            }
+        }
+        if (empty($accountPeriods)) {
+            continue;
+        }
+        $clientSection = '';
+        foreach ($accountPeriods as $accountName => $periodLabels) {
+            $clientSection .= "Account: {$accountName}: Pending\n";
+            foreach ($periodLabels as $label) {
+                $clientSection .= "Period: {$label}\n";
             }
             $clientSection .= "\n";
         }
-        if ($clientSection !== '') {
-            $sections .= "Client: {$sharedClient['name']}\n" . $clientSection;
-        }
+        $sections .= "Client: {$sharedClient['name']}\n" . $clientSection;
     }
 
     if ($sections === '') {
@@ -119,7 +137,7 @@ foreach ($emailTargets as $email => $target) {
              . "This is a reminder regarding pending bank statements for:\n\n"
              . $sections
              . "Please send us the required files at your earliest convenience.\n\n"
-             . "Regards,\nWork Progress System";
+             . "Regards,\nTaxCheapo Bookkeeping Work Progress System";
 
     $emailSent = false;
 
@@ -131,6 +149,7 @@ foreach ($emailTargets as $email => $target) {
             $mail->SMTPAuth = true;
             $mail->Username = SMTP_USER;
             $mail->Password = SMTP_PASS;
+            $mail->Timeout  = 30;
             if (SMTP_SECURE === 'ssl') {
                 $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
             } elseif (SMTP_SECURE === 'tls') {
@@ -140,12 +159,13 @@ foreach ($emailTargets as $email => $target) {
             }
             $mail->Port    = SMTP_PORT;
             $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+            $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
             $mail->addAddress($email);
             $mail->Subject = $subject;
             $mail->Body    = $body;
             $mail->send();
             $emailSent = true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             logEmailFailure('reminder_bulk', $e->getMessage(), [
                 'client_email' => $email,
                 'client_name'  => $target['name'],
@@ -164,26 +184,35 @@ foreach ($emailTargets as $email => $target) {
     }
 
     // Log one record per unique client (using primary_client_id so last-sent date is queryable).
-    logAction(
-        'reminder_sent',
-        $_SESSION['user_id'],
-        null,
-        null,
-        null,
-        $target['primary_client_id'],
-        [
+    try {
+        logAction(
+            'reminder_sent',
+            $_SESSION['user_id'],
+            null,
+            null,
+            null,
+            $target['primary_client_id'],
+            [
+                'client_email' => $email,
+                'email_sent'   => $emailSent,
+            ]
+        );
+    } catch (\Throwable $logEx) {
+        logEmailFailure('reminder_bulk_log', $logEx->getMessage(), [
             'client_email' => $email,
-            'email_sent'   => $emailSent,
-        ]
-    );
+            'client_name'  => $target['name'],
+        ]);
+    }
 }
 
 if ($sentCount > 0 && $failCount === 0) {
     setFlash('success', "Reminder emails sent to {$sentCount} client(s).");
 } elseif ($sentCount > 0) {
-    setFlash('warning', "Sent {$sentCount} reminder(s); {$failCount} failed. Check SMTP configuration.");
+    setFlash('warning', "Sent {$sentCount} reminder(s); {$failCount} could not be confirmed. Check SMTP logs.");
+} elseif ($failCount > 0) {
+    setFlash('danger', 'Reminder email delivery could not be confirmed. Check SMTP configuration and email_failures.log.');
 } else {
-    setFlash('warning', 'Reminders logged but no emails could be sent. Check SMTP configuration.');
+    setFlash('info', 'No pending bank statements found for selected clients.');
 }
 
 redirect('?action=dashboard');

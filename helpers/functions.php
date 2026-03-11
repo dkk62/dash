@@ -267,3 +267,38 @@ function sortPeriodsChronologically(array &$periods): void {
         return $aTs <=> $bTs;
     });
 }
+
+/**
+ * Return true if the period label represents a month strictly BEFORE the current calendar month.
+ * Used for reminder filtering — only past periods (not the current or future month) need reminders.
+ */
+function isPeriodBeforeCurrentPeriod(string $label): bool {
+    $nowYear2 = (int) date('y');
+    $nowMonth = (int) date('n');
+
+    // Monthly label: "Jan 26", "Feb 26", etc.
+    if (preg_match('/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+[0-9]{2}$/', $label)) {
+        $periodTs = strtotime('01 ' . $label);
+        if ($periodTs === false) {
+            return false;
+        }
+        $periodYear  = (int) date('y', $periodTs);
+        $periodMonth = (int) date('n', $periodTs);
+
+        if ($periodYear < $nowYear2) {
+            return true;
+        }
+        if ($periodYear > $nowYear2) {
+            return false;
+        }
+        return $periodMonth < $nowMonth;
+    }
+
+    // Fiscal label: "FY 26"
+    if (preg_match('/^FY\s+([0-9]{2})$/', $label, $m)) {
+        return (int)$m[1] < $nowYear2;
+    }
+
+    // Custom labels: include in reminders.
+    return true;
+}

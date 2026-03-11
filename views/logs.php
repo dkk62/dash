@@ -3,7 +3,16 @@ $pageTitle = 'Activity Logs';
 ob_start();
 ?>
 
-<h4><i class="bi bi-journal-text"></i> Activity Logs</h4>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-journal-text"></i> Activity Logs</h4>
+    <form method="POST" action="<?= e(appUrl('?action=clear_logs')) ?>"
+          onsubmit="return confirm('Are you sure you want to delete all logs? This cannot be undone.');">
+        <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+        <button type="submit" class="btn btn-sm btn-warning text-dark fw-semibold">
+            <i class="bi bi-trash"></i> Empty Logs
+        </button>
+    </form>
+</div>
 
 <form method="GET" action="<?= e(appUrl('/')) ?>" class="row g-2 mb-3">
     <input type="hidden" name="action" value="logs">

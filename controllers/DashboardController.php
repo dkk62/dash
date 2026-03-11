@@ -334,9 +334,10 @@ foreach ($periods as $period) {
     }
 
     // Derive reminder / lock flags from in-memory data (no extra queries).
+    // Only grey (silver) accounts trigger a reminder — orange (auto/downloaded) and green are excluded.
     $showReminder = false;
     foreach ($s1statuses as $s1) {
-        if (in_array($s1['status'], ['grey', 'orange'], true)) {
+        if ($s1['status'] === 'grey') {
             $showReminder = true;
             break;
         }

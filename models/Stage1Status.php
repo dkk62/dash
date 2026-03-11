@@ -83,7 +83,7 @@ class Stage1Status {
             "SELECT s.*, a.account_name 
              FROM stage1_status s 
              JOIN accounts a ON a.id = s.account_id 
-             WHERE s.period_id = ? AND s.status IN ('grey','orange')
+             WHERE s.period_id = ? AND s.status = 'grey'
              ORDER BY a.account_name"
         );
         $stmt->execute([$periodId]);

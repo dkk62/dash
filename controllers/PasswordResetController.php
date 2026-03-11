@@ -65,6 +65,7 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $mail->Port       = SMTP_PORT;
                 $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+                $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
                 $mail->addAddress($email, $user['name']);
                 $mail->Subject = $subject;
                 $mail->Body    = $body;
