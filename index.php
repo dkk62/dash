@@ -121,6 +121,11 @@ switch ($action) {
         require_once BASE_PATH . '/controllers/LogController.php';
         break;
 
+    // Stage notes
+    case 'save_note':
+        require_once BASE_PATH . '/controllers/NoteController.php';
+        break;
+
     default:
         redirect('?action=dashboard');
         break;

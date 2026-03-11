@@ -202,3 +202,20 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
   UNIQUE KEY `uk_identifier_ip` (`identifier`,`ip_address`),
   KEY `idx_locked_until` (`locked_until`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- Table: stage_notes (per-stage notes added by eligible upload roles)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `stage_notes` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `period_id` INT(11) NOT NULL,
+  `stage_name` VARCHAR(10) NOT NULL,
+  `account_id` INT(11) NOT NULL DEFAULT 0,
+  `note` TEXT NOT NULL DEFAULT '',
+  `updated_by` INT(11) DEFAULT NULL,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_note_stage` (`period_id`,`stage_name`,`account_id`),
+  KEY `idx_notes_period` (`period_id`),
+  CONSTRAINT `stage_notes_ibfk_1` FOREIGN KEY (`period_id`) REFERENCES `periods` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -126,6 +126,23 @@ ob_start();
                             <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                         </span>
                     <?php endif; ?>
+                    <?php
+                        $s1NoteKey = 'stage1_' . (int)$s1['account_id'];
+                        $s1Note    = $data['notes'][$s1NoteKey] ?? '';
+                        $s1CanEdit = hasRole(stageUploadRoles('stage1'));
+                    ?>
+                    <button type="button"
+                            class="btn p-0 border-0 bg-transparent note-btn<?= $s1Note !== '' ? ' note-has-content' : '' ?>"
+                            data-bs-toggle="modal" data-bs-target="#noteModal"
+                            data-period-id="<?= $pid ?>"
+                            data-period-label="<?= e($period['period_label']) ?>"
+                            data-stage="stage1"
+                            data-account-id="<?= (int)$s1['account_id'] ?>"
+                            data-note="<?= e($s1Note) ?>"
+                            data-can-edit="<?= $s1CanEdit ? '1' : '0' ?>"
+                            title="<?= $s1Note !== '' ? 'View/Edit Note' : 'Add Note' ?>">
+                        <i class="bi bi-chat-left-text note-icon"></i>
+                    </button>
                 </div>
                 <?php else: ?>
                     <span class="text-muted">-</span>
@@ -178,6 +195,23 @@ ob_start();
                                 <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                             </span>
                         <?php endif; ?>
+                        <?php
+                            $ssNoteKey = $sn . '_0';
+                            $ssNote    = $data['notes'][$ssNoteKey] ?? '';
+                            $ssCanEdit = hasRole(stageUploadRoles($sn));
+                        ?>
+                        <button type="button"
+                                class="btn p-0 border-0 bg-transparent note-btn<?= $ssNote !== '' ? ' note-has-content' : '' ?>"
+                                data-bs-toggle="modal" data-bs-target="#noteModal"
+                                data-period-id="<?= $pid ?>"
+                                data-period-label="<?= e($period['period_label']) ?>"
+                                data-stage="<?= $sn ?>"
+                                data-account-id="0"
+                                data-note="<?= e($ssNote) ?>"
+                                data-can-edit="<?= $ssCanEdit ? '1' : '0' ?>"
+                                title="<?= $ssNote !== '' ? 'View/Edit Note' : 'Add Note' ?>">
+                            <i class="bi bi-chat-left-text note-icon"></i>
+                        </button>
                     </div>
                 </td>
                 <?php endforeach; ?>
@@ -278,6 +312,32 @@ ob_start();
 <?php endif; ?>
 
 <?php endif; ?>
+
+<!-- Stage Note Modal -->
+<div class="modal fade" id="noteModal" tabindex="-1" aria-labelledby="noteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0" id="noteModalLabel"><i class="bi bi-chat-left-text"></i> Stage Note</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pb-2">
+        <div id="noteModalMeta" class="text-muted small mb-2"></div>
+        <textarea id="noteModalText" class="form-control" rows="5" maxlength="1000"
+                  placeholder="Enter note..." style="font-size:0.85rem;resize:vertical;"></textarea>
+        <div id="noteModalReadonly" class="border rounded p-2 bg-light"
+             style="font-size:0.85rem;min-height:80px;white-space:pre-wrap;display:none;"></div>
+        <div class="text-end mt-1"><small id="noteCharCount" class="text-muted"></small></div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-sm" id="noteSaveBtn">
+            <i class="bi bi-floppy"></i> Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <?php if (hasRole(['admin']) && !empty($reminderTargets)): ?>
 <style>

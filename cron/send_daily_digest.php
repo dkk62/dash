@@ -25,6 +25,7 @@ require_once BASE_PATH . '/config/mail.php';
 require_once BASE_PATH . '/helpers/functions.php';
 require_once BASE_PATH . '/models/User.php';
 require_once BASE_PATH . '/models/NotificationQueue.php';
+require_once BASE_PATH . '/models/StageNote.php';
 
 $rows = NotificationQueue::fetchUnsent();
 
@@ -83,8 +84,31 @@ foreach ($byRole as $role => $roleRows) {
     $body    = "Hello,\n\n"
              . "The following uploads were completed today ({$date}):\n\n"
              . $lines
-             . "Please review the dashboard for any required workflow actions.\n\n"
-             . "Regards,\nWork Progress System";
+             . "Please review the dashboard for any required workflow actions.\n\n";
+
+    // Append stage notes summary (all non-empty notes, visible to all roles)
+    $allNotes = StageNote::allNonEmpty();
+    if (!empty($allNotes)) {
+        $stageLabelsAll = [
+            'stage1' => 'Stage 1 - Initial Upload',
+            'stage2' => 'Stage 2 - Processing Completed',
+            'stage3' => 'Stage 3 - Reclassification Upload',
+            'stage4' => 'Stage 4 - Reclassification Completed',
+        ];
+        $body .= str_repeat('-', 40) . "\nSTAGE NOTES SUMMARY\n" . str_repeat('-', 40) . "\n";
+        foreach ($allNotes as $n) {
+            $sLabel = $stageLabelsAll[$n['stage_name']] ?? strtoupper($n['stage_name']);
+            $body .= "Client:  {$n['client_name']}\n";
+            $body .= "Period:  {$n['period_label']}\n";
+            $body .= "Stage:   {$sLabel}\n";
+            if (!empty($n['account_name'])) {
+                $body .= "Account: {$n['account_name']}\n";
+            }
+            $body .= "Note:    {$n['note']}\n\n";
+        }
+    }
+
+    $body .= "Regards,\nWork Progress System";
 
     $sentIds = [];
     foreach ($recipients as $recipient) {

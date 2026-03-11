@@ -13,8 +13,8 @@
 <?php if (isLoggedIn()): ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="<?= e(appUrl('?action=dashboard')) ?>">
-            <i class="bi bi-clipboard-data"></i> Work Progress
+        <a class="navbar-brand p-0" href="<?= e(appUrl('?action=dashboard')) ?>">
+            <img src="<?= e(assetUrl('img/taxcheapo-logo-white.png')) ?>" alt="Work Progress" style="height:40px;width:auto;display:block;">
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>

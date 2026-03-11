@@ -6,6 +6,7 @@ require_once BASE_PATH . '/models/Stage1Status.php';
 require_once BASE_PATH . '/models/StageStatus.php';
 require_once BASE_PATH . '/models/FileRecord.php';
 require_once BASE_PATH . '/models/Log.php';
+require_once BASE_PATH . '/models/StageNote.php';
 
 /**
  * Check if a period label is monthly format like "Jan 26".
@@ -301,11 +302,12 @@ if (currentRole() === 'client') {
     }
 }
 
-// Bulk-load all status and file data in 3 queries instead of 5× per period.
+// Bulk-load all status and file data in a few queries instead of per-period lookups.
 $allPeriodIds = array_map(fn($p) => (int)$p['id'], $periods);
 $bulkS1     = Stage1Status::bulkByPeriods($allPeriodIds);
 $bulkStages = StageStatus::bulkByPeriods($allPeriodIds);
 $bulkFiles  = FileRecord::bulkHasFiles($allPeriodIds);
+$bulkNotes  = StageNote::bulkByPeriods($allPeriodIds);
 
 // Build full dashboard data using pre-loaded bulk data (no additional queries).
 $allDashboardData = [];
@@ -357,6 +359,7 @@ foreach ($periods as $period) {
         'hasStage2File' => $hasStage2File,
         'hasStage3File' => $hasStage3File,
         'hasStage4File' => $hasStage4File,
+        'notes'         => $bulkNotes[$pid] ?? [],
     ];
 }
 

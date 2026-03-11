@@ -191,4 +191,97 @@ document.addEventListener('DOMContentLoaded', function () {
             xhr.send(formData);
         });
     });
+
+    // ---- Stage Note Modal ----
+    var noteModal = document.getElementById('noteModal');
+    if (noteModal) {
+        var noteModalText     = document.getElementById('noteModalText');
+        var noteModalReadonly = document.getElementById('noteModalReadonly');
+        var noteModalMeta     = document.getElementById('noteModalMeta');
+        var noteCharCount     = document.getElementById('noteCharCount');
+        var noteSaveBtn       = document.getElementById('noteSaveBtn');
+        var _notePeriodId     = '';
+        var _noteStage        = '';
+        var _noteAccountId    = '0';
+        var _noteTriggerBtn   = null;
+
+        var stageLabels = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3', stage4: 'Stage 4' };
+
+        noteModal.addEventListener('show.bs.modal', function (event) {
+            var btn = event.relatedTarget;
+            _noteTriggerBtn  = btn;
+            _notePeriodId    = btn.getAttribute('data-period-id');
+            _noteStage       = btn.getAttribute('data-stage');
+            _noteAccountId   = btn.getAttribute('data-account-id') || '0';
+            var canEdit      = btn.getAttribute('data-can-edit') === '1';
+            var noteText     = btn.getAttribute('data-note') || '';
+            var periodLabel  = btn.getAttribute('data-period-label') || ('Period #' + _notePeriodId);
+
+            noteModalMeta.textContent = (stageLabels[_noteStage] || _noteStage) + '  \u00b7  ' + periodLabel;
+
+            if (canEdit) {
+                noteModalText.value = noteText;
+                noteModalText.style.display = '';
+                noteModalReadonly.style.display = 'none';
+                noteSaveBtn.style.display = '';
+                noteCharCount.textContent = noteText.length + ' / 1000';
+                setTimeout(function () { noteModalText.focus(); }, 300);
+            } else {
+                noteModalReadonly.textContent = noteText || '(no note saved)';
+                noteModalText.style.display = 'none';
+                noteModalReadonly.style.display = '';
+                noteSaveBtn.style.display = 'none';
+                noteCharCount.textContent = '';
+            }
+        });
+
+        noteModalText.addEventListener('input', function () {
+            noteCharCount.textContent = this.value.length + ' / 1000';
+        });
+
+        noteSaveBtn.addEventListener('click', function () {
+            var note = noteModalText.value.trim();
+            noteSaveBtn.disabled = true;
+
+            var formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+            formData.append('period_id', _notePeriodId);
+            formData.append('stage', _noteStage);
+            formData.append('account_id', _noteAccountId);
+            formData.append('note', note);
+
+            var xhr = new XMLHttpRequest();
+            var saveUrl = window.location.href.split('?')[0] + '?action=save_note';
+            xhr.open('POST', saveUrl, true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'json';
+
+            xhr.addEventListener('load', function () {
+                noteSaveBtn.disabled = false;
+                if (xhr.status >= 200 && xhr.status < 300 && xhr.response && xhr.response.success) {
+                    if (_noteTriggerBtn) {
+                        _noteTriggerBtn.setAttribute('data-note', note);
+                        if (note !== '') {
+                            _noteTriggerBtn.classList.add('note-has-content');
+                            _noteTriggerBtn.title = 'View/Edit Note';
+                        } else {
+                            _noteTriggerBtn.classList.remove('note-has-content');
+                            _noteTriggerBtn.title = 'Add Note';
+                        }
+                    }
+                    bootstrap.Modal.getInstance(noteModal).hide();
+                } else {
+                    var msg = (xhr.response && xhr.response.message) ? xhr.response.message : 'Failed to save note.';
+                    alert(msg);
+                }
+            });
+
+            xhr.addEventListener('error', function () {
+                noteSaveBtn.disabled = false;
+                alert('Network error. Please try again.');
+            });
+
+            xhr.send(formData);
+        });
+    }
 });
