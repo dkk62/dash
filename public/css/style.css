@@ -259,6 +259,56 @@
     background-color: rgba(0, 123, 255, 0.05);
 }
 
+/* Custom thead color for all app tables */
+.dashboard-table thead th,
+.dashboard-table thead td,
+#reminderClientList thead th,
+thead.table-dark th,
+thead.table-dark td {
+    background-color: #1F7A6B !important;
+    color: #fff !important;
+    border-color: #1F7A6B !important;
+}
+
+/* Global button color override */
+.btn-primary,
+.btn-secondary,
+.btn-info,
+.btn-success,
+.btn-warning,
+.btn-danger {
+    background-color: #1F7A6B !important;
+    border-color: #1F7A6B !important;
+    color: #fff !important;
+}
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-info:hover,
+.btn-success:hover,
+.btn-warning:hover,
+.btn-danger:hover {
+    background-color: #185f53 !important;
+    border-color: #185f53 !important;
+    color: #fff !important;
+}
+.btn-primary:focus,
+.btn-secondary:focus,
+.btn-info:focus,
+.btn-success:focus,
+.btn-warning:focus,
+.btn-danger:focus,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-info:active,
+.btn-success:active,
+.btn-warning:active,
+.btn-danger:active {
+    background-color: #185f53 !important;
+    border-color: #185f53 !important;
+    box-shadow: 0 0 0 0.25rem rgba(31, 122, 107, 0.4) !important;
+    color: #fff !important;
+}
+
 /* Navbar brand icon */
 .navbar-brand i {
     font-size: 1.2rem;

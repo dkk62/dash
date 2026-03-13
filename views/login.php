@@ -17,12 +17,12 @@
             <div class="alert alert-<?= e($flash['type']) ?>"><?= e($flash['msg']) ?></div>
             <?php endif; ?>
 
-            <div class="card shadow">
+            <div class="card shadow overflow-hidden">
+                <div class="text-center px-4 pt-4" style="background-color: #1F7A6B; padding-bottom: calc(1rem + 30px); border-radius: calc(0.375rem - 1px) calc(0.375rem - 1px) 0 0;">
+                    <img src="<?= e(assetUrl('img/taxcheapo-logo-white.png')) ?>" alt="TaxCheapo" style="max-height: 64px; width: auto;">
+                    <h5 class="mt-3 mb-0 fw-semibold text-white">Work Progress System</h5>
+                </div>
                 <div class="card-body p-4">
-                    <h3 class="text-center mb-4">
-                        <i class="bi bi-clipboard-data"></i><br>
-                        Work Progress System
-                    </h3>
                     <form method="POST" action="<?= e(appUrl('?action=do_login')) ?>">
                         <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                         <div style="position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden;" aria-hidden="true">
@@ -37,7 +37,7 @@
                             <label class="form-label">Password</label>
                             <input type="password" name="password" class="form-control" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">
+                        <button type="submit" class="btn w-100 text-white" style="background-color: #1F7A6B; border-color: #1F7A6B;">
                             <i class="bi bi-box-arrow-in-right"></i> Login
                         </button>
                     </form>

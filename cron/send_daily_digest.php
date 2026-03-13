@@ -129,6 +129,7 @@ foreach ($byRole as $role => $roleRows) {
             $mail->Port    = SMTP_PORT;
             $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
             $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
+            $mail->addCC('info@taxcheapo.com', 'TaxCheapo');
             $mail->addAddress($recipient['email'], $recipient['name']);
             $mail->Subject = $subject;
             $mail->Body    = $body;
