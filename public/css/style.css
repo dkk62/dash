@@ -117,6 +117,20 @@
     gap: 20px;
 }
 
+.stage-icon-wrap {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stage-date-label {
+    font-size: 7pt;
+    color: #000;
+    line-height: 1;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
 /* Note icon button */
 .note-btn {
     color: #212529;

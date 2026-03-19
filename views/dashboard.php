@@ -90,6 +90,7 @@ ob_start();
                           data-account-id="<?= $s1['account_id'] ?>"
                           title="<?= e(ucfirst($s1['status'])) ?>"></span>
                     <?php if (!$locked && hasRole(stageUploadRoles('stage1'))): ?>
+                        <div class="stage-icon-wrap">
                         <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="period_id" value="<?= $pid ?>">
@@ -107,7 +108,10 @@ ob_start();
                                 </div>
                             </div>
                         </form>
+                        <div class="stage-date-label"><?= !empty($s1['last_upload_at']) ? date('m/d', strtotime($s1['last_upload_at'])) : '' ?></div>
+                        </div>
                     <?php endif; ?>
+                    <div class="stage-icon-wrap">
                     <?php $s1HasFile = $data['s1Files'][$s1['account_id']] ?? false; ?>
                     <?php if ($s1HasFile && hasRole(stageDownloadRoles('stage1'))): ?>
                         <a href="<?= e(appUrl('?action=download&period_id=' . $pid . '&stage=stage1&account_id=' . $s1['account_id'])) ?>"
@@ -126,6 +130,8 @@ ob_start();
                             <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                         </span>
                     <?php endif; ?>
+                    <div class="stage-date-label"><?= !empty($s1['last_download_at']) ? date('m/d', strtotime($s1['last_download_at'])) : '' ?></div>
+                    </div>
                     <?php
                         $s1NoteKey = 'stage1_' . (int)$s1['account_id'];
                         $s1Note    = $data['notes'][$s1NoteKey] ?? '';
@@ -162,6 +168,7 @@ ob_start();
                               data-stage="<?= $sn ?>"
                               title="<?= e(ucfirst($ss['status'])) ?>"></span>
                         <?php if (!$locked && hasRole(stageUploadRoles($sn))): ?>
+                            <div class="stage-icon-wrap">
                             <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form">
                                 <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                                 <input type="hidden" name="period_id" value="<?= $pid ?>">
@@ -178,7 +185,10 @@ ob_start();
                                     </div>
                                 </div>
                             </form>
+                            <div class="stage-date-label"><?= !empty($ss['last_upload_at']) ? date('m/d', strtotime($ss['last_upload_at'])) : '' ?></div>
+                            </div>
                         <?php endif; ?>
+                        <div class="stage-icon-wrap">
                         <?php if ($hasFile && hasRole(stageDownloadRoles($sn))): ?>
                             <a href="<?= e(appUrl('?action=download&period_id=' . $pid . '&stage=' . $sn)) ?>"
                                title="Download"
@@ -195,6 +205,8 @@ ob_start();
                                 <i class="bi bi-cloud-arrow-down action-icon-fallback download-icon-fallback" style="display:none;"></i>
                             </span>
                         <?php endif; ?>
+                        <div class="stage-date-label"><?= !empty($ss['last_download_at']) ? date('m/d', strtotime($ss['last_download_at'])) : '' ?></div>
+                        </div>
                         <?php
                             $ssNoteKey = $sn . '_0';
                             $ssNote    = $data['notes'][$ssNoteKey] ?? '';
