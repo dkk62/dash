@@ -43,7 +43,8 @@ function queueStageUploadNotification(string $stage, array $period, ?int $accoun
         $period['period_label'] ?? 'N/A',
         $accountName,
         $uploader['name'] ?? ('User ID ' . $uploadedByUserId),
-        $uploadedOriginalNames
+        $uploadedOriginalNames,
+        (int) ($client['id'] ?? 0)
     );
 }
 
@@ -232,6 +233,8 @@ if ($action === 'download') {
     }
 
     $period = Period::find($periodId);
+    $client = Client::find((int) ($period['client_id'] ?? 0));
+    $clientSafe = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $client['name'] ?? ('client_' . ($period['client_id'] ?? 0)));
     $fileCount = count($existingFiles);
 
     // If only 1 file, download it directly. If 2+, create ZIP.
@@ -239,7 +242,8 @@ if ($action === 'download') {
         // Single file download
         $singleFile = $existingFiles[0];
         $filePath = $singleFile['full_path'];
-        $fileName = $singleFile['name'];
+        $origName = basename($singleFile['name']);
+        $fileName = $clientSafe . '_' . $origName;
 
         if (!file_exists($filePath) || !is_file($filePath)) {
             setFlash('danger', 'File not found.');
@@ -265,7 +269,7 @@ if ($action === 'download') {
         ]);
 
         header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="' . basename($fileName) . '"');
+        header('Content-Disposition: attachment; filename="' . $fileName . '"');
         header('Content-Length: ' . filesize($filePath));
         readfile($filePath);
         exit;
@@ -320,7 +324,7 @@ if ($action === 'download') {
     ]);
 
     $periodSafe = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $period['period_label'] ?? ('period_' . $periodId));
-    $zipName = $stage . '_' . $periodSafe;
+    $zipName = $clientSafe . '_' . $stage . '_' . $periodSafe;
     if ($accountId) {
         $zipName .= '_acc_' . $accountId;
     }

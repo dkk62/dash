@@ -24,6 +24,7 @@ require_once BASE_PATH . '/config/database.php';
 require_once BASE_PATH . '/config/mail.php';
 require_once BASE_PATH . '/helpers/functions.php';
 require_once BASE_PATH . '/models/User.php';
+require_once BASE_PATH . '/models/Client.php';
 require_once BASE_PATH . '/models/NotificationQueue.php';
 require_once BASE_PATH . '/models/StageNote.php';
 
@@ -34,36 +35,43 @@ if (empty($rows)) {
     exit(0);
 }
 
-// Group rows by target_role
-$byRole = [];
-foreach ($rows as $row) {
-    $byRole[$row['target_role']][] = $row;
-}
-
 require_once BASE_PATH . '/vendor/PHPMailer/src/Exception.php';
 require_once BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
 require_once BASE_PATH . '/vendor/PHPMailer/src/SMTP.php';
 
-$date    = date('m/d/Y');
-$allSent = [];
+$date = date('m/d/Y');
 
-foreach ($byRole as $role => $roleRows) {
-    $recipients = User::byRole($role);
-    if (empty($recipients)) {
-        echo '[' . date('Y-m-d H:i:s') . "] No recipients for role '{$role}'. Skipping." . PHP_EOL;
+$stageLabels = [
+    'stage1' => 'Initial Upload',
+    'stage2' => 'Processing Completed',
+    'stage3' => 'Reclassification Upload',
+    'stage4' => 'Reclassification Completed',
+];
+
+$stageLabelsAll = [
+    'stage1' => 'Stage 1 - Initial Upload',
+    'stage2' => 'Stage 2 - Processing Completed',
+    'stage3' => 'Stage 3 - Reclassification Upload',
+    'stage4' => 'Stage 4 - Reclassification Completed',
+];
+
+// Get all non-admin users (processor0 + processor1) and send each a personalized digest.
+$allProcessors = User::byRoles(['processor0', 'processor1']);
+
+$allSentIds = [];
+
+foreach ($allProcessors as $recipient) {
+    $assignedClientIds = Client::getClientIdsForUser((int) $recipient['id']);
+    $userRows = NotificationQueue::fetchUnsentForClients($assignedClientIds);
+
+    if (empty($userRows)) {
+        echo '[' . date('Y-m-d H:i:s') . "] No relevant uploads for {$recipient['email']}. Skipping." . PHP_EOL;
         continue;
     }
 
-    $stageLabels = [
-        'stage1' => 'Initial Upload',
-        'stage2' => 'Processing Completed',
-        'stage3' => 'Reclassification Upload',
-        'stage4' => 'Reclassification Completed',
-    ];
-
     // Build body — one section per upload row
     $lines = '';
-    foreach ($roleRows as $r) {
+    foreach ($userRows as $r) {
         $fileNames  = json_decode($r['file_names'], true) ?: [];
         $stageLabel = $stageLabels[$r['stage']] ?? strtoupper($r['stage']);
         $lines .= "Client:   {$r['client_name']}\n";
@@ -81,22 +89,17 @@ foreach ($byRole as $role => $roleRows) {
     }
 
     $subject = "Daily Upload Summary - {$date}";
-    $body    = "Hello,\n\n"
-             . "The following uploads were completed today ({$date}):\n\n"
+    $body    = "Hello {$recipient['name']},\n\n"
+             . "The following uploads were completed today ({$date}) for your assigned clients:\n\n"
              . $lines
              . "Please review the dashboard for any required workflow actions.\n\n";
 
-    // Append stage notes summary (all non-empty notes, visible to all roles)
+    // Append stage notes summary for notes belonging to the user's assigned clients
     $allNotes = StageNote::allNonEmpty();
-    if (!empty($allNotes)) {
-        $stageLabelsAll = [
-            'stage1' => 'Stage 1 - Initial Upload',
-            'stage2' => 'Stage 2 - Processing Completed',
-            'stage3' => 'Stage 3 - Reclassification Upload',
-            'stage4' => 'Stage 4 - Reclassification Completed',
-        ];
+    $relevantNotes = array_filter($allNotes, fn($n) => in_array((int)($n['client_id'] ?? 0), $assignedClientIds, true));
+    if (!empty($relevantNotes)) {
         $body .= str_repeat('-', 40) . "\nSTAGE NOTES SUMMARY\n" . str_repeat('-', 40) . "\n";
-        foreach ($allNotes as $n) {
+        foreach ($relevantNotes as $n) {
             $sLabel = $stageLabelsAll[$n['stage_name']] ?? strtoupper($n['stage_name']);
             $body .= "Client:  {$n['client_name']}\n";
             $body .= "Period:  {$n['period_label']}\n";
@@ -110,41 +113,43 @@ foreach ($byRole as $role => $roleRows) {
 
     $body .= "Regards,\nWork Progress System";
 
-    $sentIds = [];
-    foreach ($recipients as $recipient) {
-        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host     = SMTP_HOST;
-            $mail->SMTPAuth = true;
-            $mail->Username = SMTP_USER;
-            $mail->Password = SMTP_PASS;
-            if (SMTP_SECURE === 'ssl') {
-                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-            } elseif (SMTP_SECURE === 'tls') {
-                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            } else {
-                $mail->SMTPSecure = '';
-            }
-            $mail->Port    = SMTP_PORT;
-            $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
-            $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
-            $mail->addCC('info@taxcheapo.com', 'TaxCheapo');
-            $mail->addAddress($recipient['email'], $recipient['name']);
-            $mail->Subject = $subject;
-            $mail->Body    = $body;
-            $mail->send();
-            echo '[' . date('Y-m-d H:i:s') . "] Sent digest to {$recipient['email']} ({$role}, " . count($roleRows) . " uploads)." . PHP_EOL;
-        } catch (\Exception $e) {
-            echo '[' . date('Y-m-d H:i:s') . "] FAILED sending to {$recipient['email']}: " . $e->getMessage() . PHP_EOL;
+    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host     = SMTP_HOST;
+        $mail->SMTPAuth = true;
+        $mail->Username = SMTP_USER;
+        $mail->Password = SMTP_PASS;
+        if (SMTP_SECURE === 'ssl') {
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        } elseif (SMTP_SECURE === 'tls') {
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        } else {
+            $mail->SMTPSecure = '';
         }
+        $mail->Port    = SMTP_PORT;
+        $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
+        $mail->addCC('info@taxcheapo.com', 'TaxCheapo');
+        $mail->addAddress($recipient['email'], $recipient['name']);
+        $mail->Subject = $subject;
+        $mail->Body    = $body;
+        $mail->send();
+        echo '[' . date('Y-m-d H:i:s') . "] Sent digest to {$recipient['email']} ({$recipient['role']}, " . count($userRows) . " upload(s))." . PHP_EOL;
+        foreach ($userRows as $r) {
+            $allSentIds[] = (int) $r['id'];
+        }
+    } catch (\Exception $e) {
+        echo '[' . date('Y-m-d H:i:s') . "] FAILED sending to {$recipient['email']}: " . $e->getMessage() . PHP_EOL;
     }
-
-    // Mark all rows for this role as sent (regardless of per-recipient failures —
-    // rows are tied to the role, not individual recipients)
-    $sentIds = array_column($roleRows, 'id');
-    NotificationQueue::markSent($sentIds);
-    $allSent = array_merge($allSent, $sentIds);
 }
+
+// Mark all successfully covered rows as sent (deduplicated).
+$allSentIds = array_unique($allSentIds);
+if (!empty($allSentIds)) {
+    NotificationQueue::markSent($allSentIds);
+}
+
+echo '[' . date('Y-m-d H:i:s') . '] Done. Marked ' . count($allSentIds) . ' notification(s) as sent.' . PHP_EOL;
 
 echo '[' . date('Y-m-d H:i:s') . '] Done. Marked ' . count($allSent) . ' notification(s) as sent.' . PHP_EOL;

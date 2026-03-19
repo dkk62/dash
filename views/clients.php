@@ -15,6 +15,8 @@ ob_start();
                     <th>Phone</th>
                     <th>Password</th>
                     <th>Cycle</th>
+                    <th>Processor 0</th>
+                    <th>Processor 1</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -28,6 +30,8 @@ ob_start();
                     <td><?= e($c['phone'] ?? '') ?></td>
                     <td><?= !empty($c['password_hash']) ? '<span class="badge bg-success">Set</span>' : '<span class="badge bg-warning text-dark">Not Set</span>' ?></td>
                     <td><span class="badge bg-secondary"><?= e($c['cycle_type']) ?></span></td>
+                    <td><?= $c['processor0_name'] ? e($c['processor0_name']) : '<span class="text-muted">—</span>' ?></td>
+                    <td><?= $c['processor1_name'] ? e($c['processor1_name']) : '<span class="text-muted">—</span>' ?></td>
                     <td>
                         <a href="<?= e(appUrl('?action=accounts&client_id=' . $c['id'])) ?>" class="btn btn-sm btn-info" title="Accounts">
                             <i class="bi bi-bank"></i>
@@ -50,7 +54,7 @@ ob_start();
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($clients)): ?>
-                <tr><td colspan="7" class="text-muted text-center">No clients yet.</td></tr>
+                <tr><td colspan="9" class="text-muted text-center">No clients yet.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
@@ -89,6 +93,34 @@ ob_start();
                 <select name="cycle_type" class="form-select">
                     <option value="monthly" <?= ($editClient['cycle_type'] ?? '') === 'monthly' ? 'selected' : '' ?>>Monthly</option>
                     <option value="yearly" <?= ($editClient['cycle_type'] ?? '') === 'yearly' ? 'selected' : '' ?>>Yearly</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Processor 0</label>
+                <select name="processor0_id" class="form-select">
+                    <option value="">— None —</option>
+                    <?php foreach ($processorUsers as $pu): ?>
+                        <?php if ($pu['role'] === 'processor0'): ?>
+                        <option value="<?= $pu['id'] ?>"
+                            <?= ((int)($editClient['processor0_id'] ?? 0) === (int)$pu['id']) ? 'selected' : '' ?>>
+                            <?= e($pu['name']) ?>
+                        </option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Processor 1</label>
+                <select name="processor1_id" class="form-select">
+                    <option value="">— None —</option>
+                    <?php foreach ($processorUsers as $pu): ?>
+                        <?php if ($pu['role'] === 'processor1'): ?>
+                        <option value="<?= $pu['id'] ?>"
+                            <?= ((int)($editClient['processor1_id'] ?? 0) === (int)$pu['id']) ? 'selected' : '' ?>>
+                            <?= e($pu['name']) ?>
+                        </option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <button type="submit" class="btn btn-primary">

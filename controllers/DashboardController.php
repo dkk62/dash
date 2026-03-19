@@ -302,6 +302,12 @@ if (currentRole() === 'client') {
     }
 }
 
+// Filter periods for processor roles — only show clients assigned to them
+if (in_array(currentRole(), ['processor0', 'processor1'])) {
+    $assignedClientIds = Client::getClientIdsForUser((int) $_SESSION['user_id']);
+    $periods = array_values(array_filter($periods, fn($p) => in_array((int) $p['client_id'], $assignedClientIds, true)));
+}
+
 // Bulk-load all status and file data in a few queries instead of per-period lookups.
 $allPeriodIds = array_map(fn($p) => (int)$p['id'], $periods);
 $bulkS1     = Stage1Status::bulkByPeriods($allPeriodIds);

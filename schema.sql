@@ -36,10 +36,16 @@ CREATE TABLE IF NOT EXISTS `clients` (
   `phone` VARCHAR(30) DEFAULT NULL,
   `password_hash` VARCHAR(255) DEFAULT NULL,
   `cycle_type` ENUM('monthly','yearly') NOT NULL DEFAULT 'monthly',
+  `processor0_id` INT(11) DEFAULT NULL,
+  `processor1_id` INT(11) DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_clients_email` (`email`)
+  KEY `idx_clients_email` (`email`),
+  KEY `idx_clients_processor0` (`processor0_id`),
+  KEY `idx_clients_processor1` (`processor1_id`),
+  CONSTRAINT `clients_ibfk_processor0` FOREIGN KEY (`processor0_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `clients_ibfk_processor1` FOREIGN KEY (`processor1_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
@@ -181,10 +187,12 @@ CREATE TABLE IF NOT EXISTS `notification_queue` (
   `account_name` VARCHAR(150) DEFAULT NULL,
   `uploaded_by` VARCHAR(100) NOT NULL,
   `file_names` TEXT NOT NULL,
+  `client_id` INT(11) DEFAULT NULL,
   `queued_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `sent_at` TIMESTAMP NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_nq_unsent` (`sent_at`, `target_role`)
+  KEY `idx_nq_unsent` (`sent_at`, `target_role`),
+  KEY `idx_nq_client` (`client_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================

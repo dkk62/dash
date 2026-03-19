@@ -43,4 +43,15 @@ class User {
         $stmt->execute([$role]);
         return $stmt->fetchAll();
     }
+
+    public static function byRoles(array $roles): array {
+        if (empty($roles)) {
+            return [];
+        }
+        $db = getDB();
+        $placeholders = implode(',', array_fill(0, count($roles), '?'));
+        $stmt = $db->prepare("SELECT id, name, email, role FROM users WHERE role IN ($placeholders) ORDER BY role, name");
+        $stmt->execute($roles);
+        return $stmt->fetchAll();
+    }
 }

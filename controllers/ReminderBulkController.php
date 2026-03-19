@@ -183,25 +183,27 @@ foreach ($emailTargets as $email => $target) {
         $failCount++;
     }
 
-    // Log one record per unique client (using primary_client_id so last-sent date is queryable).
-    try {
-        logAction(
-            'reminder_sent',
-            $_SESSION['user_id'],
-            null,
-            null,
-            null,
-            $target['primary_client_id'],
-            [
+    // Log one record per client sharing this email so every client's last-reminder date is updated.
+    foreach ($allClients as $sharedClient) {
+        try {
+            logAction(
+                'reminder_sent',
+                $_SESSION['user_id'],
+                null,
+                null,
+                null,
+                (int)$sharedClient['id'],
+                [
+                    'client_email' => $email,
+                    'email_sent'   => $emailSent,
+                ]
+            );
+        } catch (\Throwable $logEx) {
+            logEmailFailure('reminder_bulk_log', $logEx->getMessage(), [
                 'client_email' => $email,
-                'email_sent'   => $emailSent,
-            ]
-        );
-    } catch (\Throwable $logEx) {
-        logEmailFailure('reminder_bulk_log', $logEx->getMessage(), [
-            'client_email' => $email,
-            'client_name'  => $target['name'],
-        ]);
+                'client_name'  => $sharedClient['name'],
+            ]);
+        }
     }
 }
 

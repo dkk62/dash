@@ -1,14 +1,17 @@
 <?php
 require_once BASE_PATH . '/models/Client.php';
+require_once BASE_PATH . '/models/User.php';
 
 if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrf();
-    $id        = (int) ($_POST['id'] ?? 0);
-    $name      = trim($_POST['name'] ?? '');
-    $email     = trim($_POST['email'] ?? '');
-    $phone     = trim($_POST['phone'] ?? '');
-    $cycleType = $_POST['cycle_type'] ?? 'monthly';
-    $password  = trim($_POST['password'] ?? '');
+    $id           = (int) ($_POST['id'] ?? 0);
+    $name         = trim($_POST['name'] ?? '');
+    $email        = trim($_POST['email'] ?? '');
+    $phone        = trim($_POST['phone'] ?? '');
+    $cycleType    = $_POST['cycle_type'] ?? 'monthly';
+    $password     = trim($_POST['password'] ?? '');
+    $processor0Id = !empty($_POST['processor0_id']) ? (int) $_POST['processor0_id'] : null;
+    $processor1Id = !empty($_POST['processor1_id']) ? (int) $_POST['processor1_id'] : null;
 
     if ($name === '' || $email === '') {
         setFlash('danger', 'Name and email are required.');
@@ -22,11 +25,11 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($id > 0) {
             // Update existing - password is optional
-            Client::update($id, $name, $email, $phone, $cycleType, $password ?: null);
+            Client::update($id, $name, $email, $phone, $cycleType, $password ?: null, $processor0Id, $processor1Id);
             setFlash('success', 'Client updated.');
         } else {
             // Create new - password is optional
-            Client::create($name, $email, $phone, $cycleType, $password ?: null);
+            Client::create($name, $email, $phone, $cycleType, $password ?: null, $processor0Id, $processor1Id);
             setFlash('success', 'Client created.');
         }
     } catch (RuntimeException $e) {
@@ -51,5 +54,7 @@ $editClient = null;
 if ($action === 'client_edit' && isset($_GET['id'])) {
     $editClient = Client::find((int) $_GET['id']);
 }
+
+$processorUsers = User::byRoles(['processor0', 'processor1']);
 
 include BASE_PATH . '/views/clients.php';

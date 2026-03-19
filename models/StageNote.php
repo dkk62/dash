@@ -46,7 +46,7 @@ class StageNote {
         $db = getDB();
         $stmt = $db->query(
             "SELECT sn.period_id, sn.stage_name, sn.account_id, sn.note,
-                    p.period_label, c.name AS client_name,
+                    p.period_label, p.client_id, c.name AS client_name,
                     a.account_name
              FROM stage_notes sn
              JOIN periods p ON p.id = sn.period_id

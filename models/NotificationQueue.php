@@ -8,13 +8,14 @@ class NotificationQueue {
         string $periodLabel,
         ?string $accountName,
         string $uploadedBy,
-        array $fileNames
+        array $fileNames,
+        int $clientId
     ): void {
         $db = getDB();
         $stmt = $db->prepare(
             "INSERT INTO notification_queue
-                (target_role, stage, client_name, period_label, account_name, uploaded_by, file_names)
-             VALUES (?, ?, ?, ?, ?, ?, ?)"
+                (target_role, stage, client_name, period_label, account_name, uploaded_by, file_names, client_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $targetRole,
@@ -24,6 +25,7 @@ class NotificationQueue {
             $accountName,
             $uploadedBy,
             json_encode($fileNames),
+            $clientId,
         ]);
     }
 
@@ -33,6 +35,20 @@ class NotificationQueue {
         $stmt = $db->query(
             "SELECT * FROM notification_queue WHERE sent_at IS NULL ORDER BY target_role, queued_at"
         );
+        return $stmt->fetchAll();
+    }
+
+    /** Return unsent rows that belong to any of the given client IDs. */
+    public static function fetchUnsentForClients(array $clientIds): array {
+        if (empty($clientIds)) {
+            return [];
+        }
+        $db = getDB();
+        $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
+        $stmt = $db->prepare(
+            "SELECT * FROM notification_queue WHERE sent_at IS NULL AND client_id IN ($placeholders) ORDER BY queued_at"
+        );
+        $stmt->execute($clientIds);
         return $stmt->fetchAll();
     }
 
