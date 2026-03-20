@@ -38,17 +38,19 @@ class NotificationQueue {
         return $stmt->fetchAll();
     }
 
-    /** Return unsent rows that belong to any of the given client IDs. */
-    public static function fetchUnsentForClients(array $clientIds): array {
+    /** Return unsent rows that belong to any of the given client IDs and are targeted at the given role. */
+    public static function fetchUnsentForClients(array $clientIds, string $targetRole): array {
         if (empty($clientIds)) {
             return [];
         }
         $db = getDB();
         $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
+        $params = $clientIds;
+        $params[] = $targetRole;
         $stmt = $db->prepare(
-            "SELECT * FROM notification_queue WHERE sent_at IS NULL AND client_id IN ($placeholders) ORDER BY queued_at"
+            "SELECT * FROM notification_queue WHERE sent_at IS NULL AND client_id IN ($placeholders) AND target_role = ? ORDER BY queued_at"
         );
-        $stmt->execute($clientIds);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 

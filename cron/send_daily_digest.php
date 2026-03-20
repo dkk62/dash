@@ -62,7 +62,7 @@ $allSentIds = [];
 
 foreach ($allProcessors as $recipient) {
     $assignedClientIds = Client::getClientIdsForUser((int) $recipient['id']);
-    $userRows = NotificationQueue::fetchUnsentForClients($assignedClientIds);
+    $userRows = NotificationQueue::fetchUnsentForClients($assignedClientIds, $recipient['role']);
 
     if (empty($userRows)) {
         echo '[' . date('Y-m-d H:i:s') . "] No relevant uploads for {$recipient['email']}. Skipping." . PHP_EOL;
