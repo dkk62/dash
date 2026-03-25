@@ -95,7 +95,7 @@ foreach ($allProcessors as $recipient) {
              . "Please review the dashboard for any required workflow actions.\n\n";
 
     // Append stage notes summary for notes belonging to the user's assigned clients
-    $allNotes = StageNote::allNonEmpty();
+    $allNotes = StageNote::allNonEmpty(date('Y-m-d'));
     $relevantNotes = array_filter($allNotes, fn($n) => in_array((int)($n['client_id'] ?? 0), $assignedClientIds, true));
     if (!empty($relevantNotes)) {
         $body .= str_repeat('-', 40) . "\nSTAGE NOTES SUMMARY\n" . str_repeat('-', 40) . "\n";

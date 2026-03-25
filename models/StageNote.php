@@ -41,20 +41,26 @@ class StageNote {
 
     /**
      * Fetch all non-empty notes with client/period/account context for the digest.
+     * If $sinceDate is provided (Y-m-d), only notes updated on or after that date are returned.
      */
-    public static function allNonEmpty(): array {
+    public static function allNonEmpty(?string $sinceDate = null): array {
         $db = getDB();
-        $stmt = $db->query(
-            "SELECT sn.period_id, sn.stage_name, sn.account_id, sn.note,
-                    p.period_label, p.client_id, c.name AS client_name,
-                    a.account_name
-             FROM stage_notes sn
-             JOIN periods p ON p.id = sn.period_id
-             JOIN clients c ON c.id = p.client_id
-             LEFT JOIN accounts a ON a.id = sn.account_id AND sn.account_id > 0
-             WHERE sn.note != ''
-             ORDER BY c.name, p.period_label, sn.stage_name, sn.account_id"
-        );
+        $sql = "SELECT sn.period_id, sn.stage_name, sn.account_id, sn.note,
+                       p.period_label, p.client_id, c.name AS client_name,
+                       a.account_name
+                FROM stage_notes sn
+                JOIN periods p ON p.id = sn.period_id
+                JOIN clients c ON c.id = p.client_id
+                LEFT JOIN accounts a ON a.id = sn.account_id AND sn.account_id > 0
+                WHERE sn.note != ''";
+        $params = [];
+        if ($sinceDate !== null) {
+            $sql .= " AND DATE(sn.updated_at) = ?";
+            $params[] = $sinceDate;
+        }
+        $sql .= " ORDER BY c.name, p.period_label, sn.stage_name, sn.account_id";
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 }
