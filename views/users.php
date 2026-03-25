@@ -31,8 +31,10 @@ $roleBadge = ['admin' => 'bg-danger', 'processor0' => 'bg-primary', 'processor1'
                             <i class="bi bi-pencil"></i>
                         </a>
                         <?php if ($u['id'] != $_SESSION['user_id']): ?>
-                        <form method="POST" action="<?= e(appUrl('?action=user_delete')) ?>" class="d-inline"
-                              onsubmit="return confirm('Delete user <?= e(addslashes($u['name'])) ?>?')">
+                        <form method="POST" action="<?= e(appUrl('?action=user_delete')) ?>" class="d-inline confirm-delete"
+                              data-confirm-title="Delete User"
+                              data-confirm-message="Are you sure you want to delete user &quot;<?= e($u['name']) ?>&quot;?"
+                              data-confirm-warning="This action cannot be undone.">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="id" value="<?= $u['id'] ?>">
                             <button class="btn btn-sm btn-outline-danger" title="Delete">

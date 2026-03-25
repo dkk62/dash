@@ -100,6 +100,9 @@ switch ($action) {
     case 'mark_downloaded':
         require_once BASE_PATH . '/controllers/StageController.php';
         break;
+    case 'check_existing_files':
+        require_once BASE_PATH . '/controllers/StageController.php';
+        break;
 
     // Reminder
     case 'reminder_bulk':

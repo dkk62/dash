@@ -31,8 +31,10 @@ ob_start();
                     <td><?= e($p['created_at']) ?></td>
                     <td>
                         <?php if (!$p['is_locked']): ?>
-                        <form method="POST" action="<?= e(appUrl('?action=period_delete')) ?>" class="d-inline"
-                              onsubmit="return confirm('Delete this period and all its data?')">
+                        <form method="POST" action="<?= e(appUrl('?action=period_delete')) ?>" class="d-inline confirm-delete"
+                              data-confirm-title="Delete Period"
+                              data-confirm-message="Are you sure you want to delete period &quot;<?= e($p['period_label']) ?>&quot;?"
+                              data-confirm-warning="All stage statuses, uploaded files, and notes for this period will be permanently deleted. This action cannot be undone.">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="id" value="<?= $p['id'] ?>">
                             <input type="hidden" name="client_id" value="<?= $clientId ?>">

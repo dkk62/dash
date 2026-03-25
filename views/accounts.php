@@ -67,8 +67,10 @@ ob_start();
                         <button type="submit" class="btn btn-sm btn-outline-primary" form="<?= $rowFormId ?>" title="Save Changes">
                             <i class="bi bi-check2"></i>
                         </button>
-                        <form method="POST" action="<?= e(appUrl('?action=account_delete')) ?>" class="d-inline"
-                              onsubmit="return confirm('Delete this account?')">
+                        <form method="POST" action="<?= e(appUrl('?action=account_delete')) ?>" class="d-inline confirm-delete"
+                              data-confirm-title="Delete Account"
+                              data-confirm-message="Are you sure you want to delete &quot;<?= e($a['account_name']) ?>&quot;?"
+                              data-confirm-warning="All uploaded Stage 1 files for this account across every period will be permanently deleted. This action cannot be undone.">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="id" value="<?= $a['id'] ?>">
                             <input type="hidden" name="client_id" value="<?= $clientId ?>">

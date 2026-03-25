@@ -42,8 +42,10 @@ ob_start();
                         <a href="<?= e(appUrl('?action=client_edit&id=' . $c['id'])) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </a>
-                        <form method="POST" action="<?= e(appUrl('?action=client_delete')) ?>" class="d-inline"
-                              onsubmit="return confirm('Delete this client and all related data?')">
+                        <form method="POST" action="<?= e(appUrl('?action=client_delete')) ?>" class="d-inline confirm-delete"
+                              data-confirm-title="Delete Client"
+                              data-confirm-message="Are you sure you want to delete &quot;<?= e($c['name']) ?>&quot;?"
+                              data-confirm-warning="This will permanently remove all accounts, periods, uploaded files, and related data for this client. This action cannot be undone.">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="id" value="<?= $c['id'] ?>">
                             <button class="btn btn-sm btn-outline-danger" title="Delete">

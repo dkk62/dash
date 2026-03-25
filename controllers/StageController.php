@@ -104,6 +104,14 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $failUpload('Period not found.');
     }
 
+    // Client ownership check: ensure the period belongs to one of their linked clients
+    if (currentRole() === 'client') {
+        $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+        if (!in_array((int) $period['client_id'], $allowedClientIds, true)) {
+            $failUpload('This period does not belong to your account.', 403);
+        }
+    }
+
     // Check locked
     if ($period['is_locked']) {
         $failUpload('This period is locked. Uploads are disabled.');
@@ -209,6 +217,16 @@ if ($action === 'download') {
     if (!hasRole(stageDownloadRoles($stage))) {
         setFlash('danger', 'You do not have permission to download from this stage.');
         redirect('?action=dashboard');
+    }
+
+    // Client ownership check
+    if (currentRole() === 'client') {
+        $period = Period::find($periodId);
+        $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+        if (!$period || !in_array((int) $period['client_id'], $allowedClientIds, true)) {
+            setFlash('danger', 'This period does not belong to your account.');
+            redirect('?action=dashboard');
+        }
     }
 
     $fileRecords = FileRecord::forStage($periodId, $stage, $accountId);
@@ -358,6 +376,17 @@ if ($action === 'mark_downloaded' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Client ownership check
+    if (currentRole() === 'client') {
+        $period = Period::find($periodId);
+        $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+        if (!$period || !in_array((int) $period['client_id'], $allowedClientIds, true)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'This period does not belong to your account.']);
+            exit;
+        }
+    }
+
     if (!hasRole(stageDownloadRoles($stage))) {
         http_response_code(403);
         echo json_encode(['success' => false, 'message' => 'Permission denied.']);
@@ -381,5 +410,25 @@ if ($action === 'mark_downloaded' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     echo json_encode(['success' => true, 'status' => $newStatus]);
+    exit;
+}
+
+// ---- CHECK EXISTING FILES (pre-upload confirmation) ----
+if ($action === 'check_existing_files') {
+    header('Content-Type: application/json');
+
+    $periodId  = (int) ($_GET['period_id'] ?? 0);
+    $stage     = $_GET['stage'] ?? '';
+    $accountId = !empty($_GET['account_id']) ? (int) $_GET['account_id'] : null;
+
+    if (!in_array($stage, ['stage1', 'stage2', 'stage3', 'stage4'])) {
+        echo json_encode(['files' => []]);
+        exit;
+    }
+
+    $fileRecords = FileRecord::forStage($periodId, $stage, $accountId);
+    $names = array_map(fn($f) => $f['original_filename'], $fileRecords);
+
+    echo json_encode(['files' => $names]);
     exit;
 }

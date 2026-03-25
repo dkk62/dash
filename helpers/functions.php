@@ -138,6 +138,24 @@ function clearDirectory(string $dir): void {
 }
 
 /**
+ * Recursively delete a directory and all its contents
+ */
+function deleteDirectory(string $dir): void {
+    if (!is_dir($dir)) return;
+    $items = scandir($dir);
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') continue;
+        $path = $dir . DIRECTORY_SEPARATOR . $item;
+        if (is_dir($path)) {
+            deleteDirectory($path);
+        } else {
+            unlink($path);
+        }
+    }
+    rmdir($dir);
+}
+
+/**
  * Build the storage path for a stage
  */
 function stagePath(int $clientId, int $periodId, string $stage, ?int $accountId = null): string {
@@ -255,7 +273,7 @@ function sortPeriodsChronologically(array &$periods): void {
         $aClient = $a['client_name'] ?? '';
         $bClient = $b['client_name'] ?? '';
         if ($aClient !== $bClient) {
-            return strcmp($aClient, $bClient);
+            return strcasecmp($aClient, $bClient);
         }
 
         $aTs = periodLabelSortTimestamp((string) ($a['period_label'] ?? ''), $a['created_at'] ?? null);

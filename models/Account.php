@@ -50,8 +50,24 @@ class Account {
     }
 
     public static function delete(int $id): void {
-        $db = getDB();
-        $stmt = $db->prepare("DELETE FROM accounts WHERE id=?");
-        $stmt->execute([$id]);
+        // Remove uploaded stage1 files for this account across all periods
+        $account = self::find($id);
+        if ($account) {
+            $clientId = (int) $account['client_id'];
+            $db = getDB();
+            $stmt = $db->prepare("SELECT id FROM periods WHERE client_id = ?");
+            $stmt->execute([$clientId]);
+            $periodIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($periodIds as $periodId) {
+                $dir = UPLOAD_PATH . '/clients/' . $clientId . '/' . $periodId . '/stage1/' . $id;
+                deleteDirectory($dir);
+            }
+            $delStmt = $db->prepare("DELETE FROM accounts WHERE id=?");
+            $delStmt->execute([$id]);
+        } else {
+            $db = getDB();
+            $stmt = $db->prepare("DELETE FROM accounts WHERE id=?");
+            $stmt->execute([$id]);
+        }
     }
 }

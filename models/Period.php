@@ -58,6 +58,13 @@ class Period {
     }
 
     public static function delete(int $id): void {
+        // Remove uploaded files for this period
+        $period = self::find($id);
+        if ($period) {
+            $dir = UPLOAD_PATH . '/clients/' . $period['client_id'] . '/' . $id;
+            deleteDirectory($dir);
+        }
+
         $db = getDB();
         $stmt = $db->prepare("DELETE FROM periods WHERE id = ?");
         $stmt->execute([$id]);
@@ -68,6 +75,6 @@ class Period {
         return $db->query("SELECT p.*, c.name AS client_name, c.email AS client_email, c.id AS client_id 
                            FROM periods p 
                            JOIN clients c ON c.id = p.client_id 
-                           ORDER BY c.name, p.created_at DESC")->fetchAll();
+                           ORDER BY LOWER(c.name), p.created_at DESC")->fetchAll();
     }
 }

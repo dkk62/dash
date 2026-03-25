@@ -1,6 +1,44 @@
 // Work Progress System - Client JS
 
 document.addEventListener('DOMContentLoaded', function () {
+
+    // ---- Delete Confirmation Modal ----
+    var _deleteForm = null;
+    var confirmModal = document.getElementById('confirmDeleteModal');
+    if (confirmModal) {
+        var bsConfirmModal = new bootstrap.Modal(confirmModal);
+        var confirmBtn = document.getElementById('confirmDeleteBtn');
+
+        document.querySelectorAll('form.confirm-delete').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                _deleteForm = form;
+                var title   = form.getAttribute('data-confirm-title') || 'Confirm Deletion';
+                var message = form.getAttribute('data-confirm-message') || 'Are you sure you want to delete this item?';
+                var warning = form.getAttribute('data-confirm-warning') || 'This action cannot be undone.';
+
+                document.getElementById('confirmDeleteLabel').innerHTML =
+                    '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + title;
+                document.getElementById('confirmDeleteMessage').innerHTML = message;
+                document.getElementById('confirmDeleteWarning').textContent = warning;
+                bsConfirmModal.show();
+            });
+        });
+
+        confirmBtn.addEventListener('click', function () {
+            if (_deleteForm) {
+                bsConfirmModal.hide();
+                // Submit natively, bypassing the confirm handler
+                _deleteForm.classList.remove('confirm-delete');
+                _deleteForm.submit();
+            }
+        });
+
+        confirmModal.addEventListener('hidden.bs.modal', function () {
+            _deleteForm = null;
+        });
+    }
+
     function getProgressParts(form) {
         return {
             container: form.querySelector('.upload-progress'),
@@ -118,21 +156,67 @@ document.addEventListener('DOMContentLoaded', function () {
             if (form.classList.contains('is-uploading')) {
                 return;
             }
+            var clientName = form.getAttribute('data-client-name');
+            if (clientName && !confirm('Upload files to "' + clientName + '"?')) {
+                return;
+            }
             var fileInput = form.querySelector('.file-input');
             fileInput.click();
         });
     });
 
+    function checkExistingFiles(form, callback) {
+        var periodId  = form.querySelector('input[name="period_id"]').value;
+        var stage     = form.querySelector('input[name="stage"]').value;
+        var accountInput = form.querySelector('input[name="account_id"]');
+        var accountId = accountInput ? accountInput.value : '';
+
+        var url = form.getAttribute('action').split('?')[0]
+            + '?action=check_existing_files&period_id=' + encodeURIComponent(periodId)
+            + '&stage=' + encodeURIComponent(stage);
+        if (accountId) {
+            url += '&account_id=' + encodeURIComponent(accountId);
+        }
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'json';
+        xhr.addEventListener('load', function () {
+            var files = (xhr.response && xhr.response.files) ? xhr.response.files : [];
+            callback(files);
+        });
+        xhr.addEventListener('error', function () {
+            callback([]);
+        });
+        xhr.send();
+    }
+
     document.querySelectorAll('.file-input').forEach(function (input) {
         input.addEventListener('change', function () {
-            if (this.files.length > 0) {
-                var form = this.closest('.upload-form');
-                if (form.classList.contains('is-uploading')) {
-                    return;
-                }
-                showProgress(form, this.files.length);
-                uploadViaAjax(form, this);
+            if (this.files.length === 0) {
+                return;
             }
+            var fileInput = this;
+            var form = this.closest('.upload-form');
+            if (form.classList.contains('is-uploading')) {
+                return;
+            }
+
+            checkExistingFiles(form, function (existingFiles) {
+                if (existingFiles.length > 0) {
+                    var list = existingFiles.map(function (name, i) {
+                        return (i + 1) + '. ' + name;
+                    }).join('\n');
+                    var msg = 'The following existing file(s) will be replaced:\n\n'
+                        + list + '\n\nProceed with upload?';
+                    if (!confirm(msg)) {
+                        fileInput.value = '';
+                        return;
+                    }
+                }
+                showProgress(form, fileInput.files.length);
+                uploadViaAjax(form, fileInput);
+            });
         });
     });
 

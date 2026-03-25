@@ -109,6 +109,10 @@ class Client {
     }
 
     public static function delete(int $id): void {
+        // Remove uploaded files for this client
+        $dir = UPLOAD_PATH . '/clients/' . $id;
+        deleteDirectory($dir);
+
         $db = getDB();
         $stmt = $db->prepare("DELETE FROM clients WHERE id=?");
         $stmt->execute([$id]);

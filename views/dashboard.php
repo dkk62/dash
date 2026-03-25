@@ -91,7 +91,7 @@ ob_start();
                           title="<?= e(ucfirst($s1['status'])) ?>"></span>
                     <?php if (!$locked && hasRole(stageUploadRoles('stage1'))): ?>
                         <div class="stage-icon-wrap">
-                        <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form">
+                        <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form" data-client-name="<?= e($period['client_name']) ?>">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="period_id" value="<?= $pid ?>">
                             <input type="hidden" name="stage" value="stage1">
@@ -169,7 +169,7 @@ ob_start();
                               title="<?= e(ucfirst($ss['status'])) ?>"></span>
                         <?php if (!$locked && hasRole(stageUploadRoles($sn))): ?>
                             <div class="stage-icon-wrap">
-                            <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form">
+                            <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form" data-client-name="<?= e($period['client_name']) ?>">
                                 <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                                 <input type="hidden" name="period_id" value="<?= $pid ?>">
                                 <input type="hidden" name="stage" value="<?= $sn ?>">
