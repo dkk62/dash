@@ -132,6 +132,11 @@ function requireCsrf(): void {
 function clearDirectory(string $dir): void {
     if (!is_dir($dir)) return;
     $files = glob($dir . '/*');
+    if ($files === false) {
+        $files = scandir($dir);
+        if ($files === false) return;
+        $files = array_map(fn($f) => $dir . '/' . $f, array_diff($files, ['.', '..']));
+    }
     foreach ($files as $f) {
         if (is_file($f)) unlink($f);
     }

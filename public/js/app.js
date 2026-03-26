@@ -120,8 +120,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         xhr.addEventListener('load', function () {
-            if (xhr.status >= 200 && xhr.status < 300) {
+            var response = xhr.response;
+            var isJsonSuccess = response && typeof response === 'object' && response.success === true;
+
+            if (xhr.status >= 200 && xhr.status < 300 && isJsonSuccess) {
                 updateProgress(form, 100);
+                var parts = getProgressParts(form);
+                if (parts.percent && response.message) {
+                    parts.percent.textContent = response.message;
+                }
                 setTimeout(function () {
                     window.location.reload();
                 }, 1500);
@@ -129,9 +136,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             var responseMessage = 'Upload failed. Please try again.';
-            var response = xhr.response;
             if (response && typeof response === 'object' && response.message) {
                 responseMessage = response.message;
+            } else if (xhr.status >= 200 && xhr.status < 300 && !isJsonSuccess) {
+                responseMessage = 'Upload failed: the server returned an unexpected response (status ' + xhr.status + '). Please contact the administrator.';
             }
             alert(responseMessage);
             resetUploadingState(form);
@@ -204,10 +212,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             checkExistingFiles(form, function (existingFiles) {
                 if (existingFiles.length > 0) {
+                    var clientName = form.getAttribute('data-client-name') || 'Unknown Client';
                     var list = existingFiles.map(function (name, i) {
                         return (i + 1) + '. ' + name;
                     }).join('\n');
-                    var msg = 'The following existing file(s) will be replaced:\n\n'
+                    var msg = 'Client: ' + clientName + '\n\n'
+                        + 'The following existing file(s) will be replaced:\n\n'
                         + list + '\n\nProceed with upload?';
                     if (!confirm(msg)) {
                         fileInput.value = '';

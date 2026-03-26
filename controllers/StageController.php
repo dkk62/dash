@@ -50,10 +50,9 @@ function queueStageUploadNotification(string $stage, array $period, ?int $accoun
 
 // ---- UPLOAD ----
 if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    requireCsrf();
-
     $isAjax = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest';
     $failUpload = function (string $message, int $statusCode = 400) use ($isAjax): void {
+        error_log("Upload failed ({$statusCode}): {$message}");
         if ($isAjax) {
             http_response_code($statusCode);
             header('Content-Type: application/json');
@@ -63,6 +62,27 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         setFlash('danger', $message);
         redirect('?action=dashboard');
     };
+
+    // Detect PHP post_max_size / upload_max_filesize exceeded:
+    // when the combined POST body exceeds post_max_size, PHP silently
+    // empties both $_POST and $_FILES, which causes CSRF and all
+    // downstream checks to fail with misleading errors.
+    if (empty($_POST) && empty($_FILES)) {
+        $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+        if ($contentLength > 0) {
+            $maxSize = ini_get('post_max_size') ?: 'unknown';
+            error_log("Upload rejected: content-length {$contentLength} exceeds post_max_size ({$maxSize})");
+            $failUpload(
+                "The uploaded files are too large (server limit: {$maxSize}). "
+                . 'Please reduce the file sizes or contact the administrator.',
+                413
+            );
+        }
+    }
+
+    if (!verifyCsrf()) {
+        $failUpload('Session expired or invalid token. Please reload the page and try again.', 403);
+    }
 
     $successUpload = function (string $message) use ($isAjax): void {
         if ($isAjax) {
@@ -141,6 +161,7 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Delete-before-upload: remove old files from disk and DB
     $dir = stagePath($clientId, $periodId, $stage, $accountId);
+    error_log("Upload: stage={$stage} period={$periodId} client={$clientId} account=" . ($accountId ?? 'null') . " dir={$dir} isReupload=" . ($isReupload ? 'yes' : 'no') . " fileCount=" . count($validIndexes));
     clearDirectory($dir);
     FileRecord::deleteForStage($periodId, $stage, $accountId);
 
@@ -154,6 +175,7 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $safeName = sanitizeFilename($origName);
         $destPath = $dir . '/' . $safeName;
         if (!move_uploaded_file($tmpName, $destPath)) {
+            error_log("move_uploaded_file failed: {$tmpName} -> {$destPath} (is_uploaded_file=" . (is_uploaded_file($tmpName) ? 'yes' : 'no') . ", dir_exists=" . (is_dir($dir) ? 'yes' : 'no') . ", dir_writable=" . (is_writable($dir) ? 'yes' : 'no') . ")");
             continue;
         }
 
@@ -200,7 +222,8 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         'notify_queued' => $mailStats['queued'],
     ]);
 
-    $successUpload(ucfirst($stage) . ' upload complete: ' . count($uploadedOriginalNames) . ' file(s).');
+    $clientName = $period['client_name'] ?? (Client::find($clientId)['name'] ?? 'Unknown');
+    $successUpload(ucfirst($stage) . ' upload complete for "' . $clientName . '": ' . count($uploadedOriginalNames) . ' file(s).');
 }
 
 // ---- DOWNLOAD ----
