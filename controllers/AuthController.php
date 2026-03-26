@@ -51,7 +51,7 @@ if ($action === 'do_login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user_role']  = $user['role'];
         $_SESSION['user_type']  = 'user';
         logAction('login', $user['id']);
-        redirect('?action=dashboard');
+        redirect($user['role'] === 'admin' ? '?action=pending' : '?action=dashboard');
     }
 
     // Check clients table – collect all matching clients for this email

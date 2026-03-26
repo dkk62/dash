@@ -58,7 +58,10 @@ class FileRecord {
             $pid   = (int)$row['period_id'];
             $stage = $row['stage_name'];
             $aid   = $row['account_id'];
-            if ($stage === 'stage1' && $aid !== null) {
+            if ($stage === 'stage1') {
+                if (!isset($result[$pid]['stage1']) || !is_array($result[$pid]['stage1'])) {
+                    $result[$pid]['stage1'] = [];
+                }
                 $result[$pid]['stage1'][(int)$aid] = true;
             } else {
                 $result[$pid][$stage] = true;
