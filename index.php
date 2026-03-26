@@ -64,6 +64,11 @@ switch ($action) {
         require_once BASE_PATH . '/controllers/DashboardController.php';
         break;
 
+    // Pending Work
+    case 'pending':
+        require_once BASE_PATH . '/controllers/PendingController.php';
+        break;
+
     // Clients
     case 'clients':
     case 'client_save':

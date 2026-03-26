@@ -144,7 +144,7 @@
     opacity: 1;
 }
 .note-btn.note-has-content {
-    color: #0d6efd;
+    color: #ff0000;
     opacity: 1;
 }
 .note-icon {
@@ -266,6 +266,42 @@
 /* Badge refinements */
 .badge {
     font-size: 0.75rem;
+}
+
+/* Pending Work tables */
+.pending-card .card-header {
+    font-size: 0.9rem;
+}
+
+.pending-table th {
+    white-space: nowrap;
+    font-size: 0.78rem;
+    padding: 0.35rem 0.5rem;
+}
+
+.pending-table td {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.5rem;
+    vertical-align: middle;
+}
+
+.pending-table .period-col {
+    min-width: 60px;
+}
+
+.pending-table .sticky-col {
+    position: sticky;
+    left: 0;
+    background: inherit;
+    z-index: 1;
+}
+
+.pending-table thead .sticky-col {
+    z-index: 2;
+}
+
+.pending-table .led {
+    margin-bottom: 0;
 }
 
 /* Table row hover for period groups */

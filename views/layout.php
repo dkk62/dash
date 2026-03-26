@@ -26,6 +26,11 @@
                         <i class="bi bi-grid-3x3"></i> Dashboard
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= e(appUrl('?action=pending')) ?>">
+                        <i class="bi bi-hourglass-split"></i> Pending Work
+                    </a>
+                </li>
                 <?php if (hasRole(['admin'])): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=clients')) ?>">
