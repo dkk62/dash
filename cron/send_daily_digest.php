@@ -95,26 +95,33 @@ foreach ($allProcessors as $recipient) {
              . "Please review the dashboard for any required workflow actions.\n\n";
 
     // Append stage notes summary for notes belonging to the user's assigned clients
-    $allNotes = StageNote::allNonEmpty(date('Y-m-d'));
+    // Cron runs at 00:10 AM, so look at previous day's notes
+    $yesterdayStr = date('Y-m-d', strtotime('-1 day'));
+    $allNotes = StageNote::allNonEmpty($yesterdayStr);
     $relevantNotes = array_filter($allNotes, fn($n) => in_array((int)($n['client_id'] ?? 0), $assignedClientIds, true));
     if (!empty($relevantNotes)) {
-        $body .= str_repeat('-', 40) . "\nSTAGE NOTES SUMMARY\n" . str_repeat('-', 40) . "\n";
+        $noteBlocks = '';
         foreach ($relevantNotes as $n) {
-            $sLabel = $stageLabelsAll[$n['stage_name']] ?? strtoupper($n['stage_name']);
-            $body .= "Client:  {$n['client_name']}\n";
-            $body .= "Period:  {$n['period_label']}\n";
-            $body .= "Stage:   {$sLabel}\n";
-            if (!empty($n['account_name'])) {
-                $body .= "Account: {$n['account_name']}\n";
-            }
             $entries = StageNote::parseEntries($n['note']);
-            // Show only today's entries in the digest
-            $todayStr = date('Y-m-d');
-            $todayEntries = array_filter($entries, fn($e) => str_starts_with($e['at'] ?? '', $todayStr));
-            foreach ($todayEntries as $e) {
-                $body .= "  [{$e['at']}] {$e['by']}: {$e['msg']}\n";
+            // Show only previous day's entries in the digest
+            $yesterdayEntries = array_filter($entries, fn($e) => str_starts_with($e['at'] ?? '', $yesterdayStr));
+            if (empty($yesterdayEntries)) continue;
+
+            $sLabel = $stageLabelsAll[$n['stage_name']] ?? strtoupper($n['stage_name']);
+            $noteBlocks .= "Client:  {$n['client_name']}\n";
+            $noteBlocks .= "Period:  {$n['period_label']}\n";
+            $noteBlocks .= "Stage:   {$sLabel}\n";
+            if (!empty($n['account_name'])) {
+                $noteBlocks .= "Account: {$n['account_name']}\n";
             }
-            $body .= "\n";
+            foreach ($yesterdayEntries as $e) {
+                $noteBlocks .= "  [{$e['at']}] {$e['by']}: {$e['msg']}\n";
+            }
+            $noteBlocks .= "\n";
+        }
+        if ($noteBlocks !== '') {
+            $body .= str_repeat('-', 40) . "\nSTAGE NOTES SUMMARY\n" . str_repeat('-', 40) . "\n";
+            $body .= $noteBlocks;
         }
     }
 
