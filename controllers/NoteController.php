@@ -13,7 +13,7 @@ requireCsrf();
 $periodId  = (int)($_POST['period_id'] ?? 0);
 $stage     = trim($_POST['stage'] ?? '');
 $accountId = (int)($_POST['account_id'] ?? 0);
-$note      = trim($_POST['note'] ?? '');
+$message   = trim($_POST['message'] ?? '');
 
 $validStages = ['stage1', 'stage2', 'stage3', 'stage4'];
 if ($periodId <= 0 || !in_array($stage, $validStages, true)) {
@@ -23,24 +23,23 @@ if ($periodId <= 0 || !in_array($stage, $validStages, true)) {
     exit;
 }
 
-// Only the eligible uploader role for this stage may save a note
-if (!hasRole(stageUploadRoles($stage))) {
-    http_response_code(403);
+if ($message === '') {
+    http_response_code(400);
     header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Not authorised to add notes to this stage']);
+    echo json_encode(['success' => false, 'message' => 'Message cannot be empty']);
     exit;
 }
 
-if (mb_strlen($note) > 1000) {
+if (mb_strlen($message) > 1000) {
     http_response_code(400);
     header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Note too long (max 1000 characters)']);
+    echo json_encode(['success' => false, 'message' => 'Message too long (max 1000 characters)']);
     exit;
 }
 
 $userId = (int)($_SESSION['user_id'] ?? 0);
-StageNote::save($periodId, $stage, $accountId, $note, $userId);
+$entry = StageNote::append($periodId, $stage, $accountId, $message, $userId);
 
 header('Content-Type: application/json');
-echo json_encode(['success' => true, 'note' => $note]);
+echo json_encode(['success' => true, 'entry' => $entry]);
 exit;

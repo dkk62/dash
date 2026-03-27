@@ -2,18 +2,78 @@
 
 class StageNote {
     /**
-     * Upsert a note for a stage entry.
-     * For stage1: account_id = actual account id.
-     * For stage2/3/4: account_id = 0.
+     * Append a chat message to the note for a stage entry.
+     * Notes are stored as a JSON array: [{"by":"Name","at":"datetime","msg":"text"}, ...]
+     * Legacy plain-text notes are migrated into the JSON format automatically.
      */
-    public static function save(int $periodId, string $stage, int $accountId, string $note, int $updatedBy): void {
+    public static function append(int $periodId, string $stage, int $accountId, string $message, int $userId): array {
         $db = getDB();
+        $userName = '';
+        $uStmt = $db->prepare("SELECT name FROM users WHERE id=?");
+        $uStmt->execute([$userId]);
+        $row = $uStmt->fetch();
+        if ($row) $userName = $row['name'];
+
+        // Load existing note
         $stmt = $db->prepare(
+            "SELECT note FROM stage_notes WHERE period_id=? AND stage_name=? AND account_id=?"
+        );
+        $stmt->execute([$periodId, $stage, $accountId]);
+        $existing = $stmt->fetchColumn();
+
+        $entries = self::parseEntries($existing ?: '');
+
+        $newEntry = [
+            'by'  => $userName,
+            'at'  => date('Y-m-d H:i'),
+            'msg' => $message,
+        ];
+        $entries[] = $newEntry;
+
+        $json = json_encode($entries, JSON_UNESCAPED_UNICODE);
+
+        $save = $db->prepare(
             "INSERT INTO stage_notes (period_id, stage_name, account_id, note, updated_by, updated_at)
              VALUES (?, ?, ?, ?, ?, NOW())
              ON DUPLICATE KEY UPDATE note=VALUES(note), updated_by=VALUES(updated_by), updated_at=NOW()"
         );
-        $stmt->execute([$periodId, $stage, $accountId, $note, $updatedBy]);
+        $save->execute([$periodId, $stage, $accountId, $json, $userId]);
+
+        return $newEntry;
+    }
+
+    /**
+     * Parse stored note value into entries array.
+     * Handles both JSON array format and legacy plain-text.
+     */
+    public static function parseEntries(string $raw): array {
+        $raw = trim($raw);
+        if ($raw === '') return [];
+
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded) && (empty($decoded) || isset($decoded[0]['msg']))) {
+            return $decoded;
+        }
+
+        // Legacy plain-text note — wrap as a single entry
+        return [['by' => 'System', 'at' => '', 'msg' => $raw]];
+    }
+
+    /**
+     * Check whether a note has any entries (for icon highlight).
+     */
+    public static function hasEntries(string $raw): bool {
+        return !empty(self::parseEntries($raw));
+    }
+
+    /**
+     * Get the latest message text for display (e.g. digest emails).
+     */
+    public static function latestMessage(string $raw): string {
+        $entries = self::parseEntries($raw);
+        if (empty($entries)) return '';
+        $last = end($entries);
+        return $last['msg'] ?? '';
     }
 
     /**

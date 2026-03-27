@@ -70,6 +70,34 @@ class FileRecord {
         return $result;
     }
 
+    public static function forStageDetailed(int $periodId, string $stage, ?int $accountId = null): array {
+        $db = getDB();
+        if ($stage === 'stage1' && $accountId !== null) {
+            $stmt = $db->prepare(
+                "SELECT f.original_filename, f.file_path, f.uploaded_at, u.name AS uploaded_by_name
+                 FROM files f
+                 JOIN users u ON u.id = f.uploaded_by
+                 WHERE f.period_id=? AND f.stage_name=? AND f.account_id=?
+                 ORDER BY f.uploaded_at DESC"
+            );
+            $stmt->execute([$periodId, $stage, $accountId]);
+        } else {
+            $stmt = $db->prepare(
+                "SELECT f.original_filename, f.file_path, f.uploaded_at, u.name AS uploaded_by_name
+                 FROM files f
+                 JOIN users u ON u.id = f.uploaded_by
+                 WHERE f.period_id=? AND f.stage_name=? AND f.account_id IS NULL
+                 ORDER BY f.uploaded_at DESC"
+            );
+            $stmt->execute([$periodId, $stage]);
+        }
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            unset($row['file_path']);
+        }
+        return $rows;
+    }
+
     public static function getFirst(int $periodId, string $stage, ?int $accountId = null): ?array {
         $db = getDB();
         if ($stage === 'stage1' && $accountId !== null) {

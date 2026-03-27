@@ -286,20 +286,156 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // ---- Stage Note Modal ----
+    // ---- Stage Files Modal (LED click) ----
+    var stageFilesModal = document.getElementById('stageFilesModal');
+    if (stageFilesModal) {
+        var bsStageFilesModal = new bootstrap.Modal(stageFilesModal);
+        var stageLabelsFiles = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3', stage4: 'Stage 4' };
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            var units = ['B', 'KB', 'MB', 'GB'];
+            var i = 0;
+            var size = bytes;
+            while (size >= 1024 && i < units.length - 1) {
+                size /= 1024;
+                i++;
+            }
+            return (i === 0 ? size : size.toFixed(1)) + ' ' + units[i];
+        }
+
+        document.addEventListener('click', function (e) {
+            var led = e.target.closest('[data-led-clickable]');
+            if (!led) return;
+
+            var periodId    = led.getAttribute('data-period-id');
+            var stage       = led.getAttribute('data-stage');
+            var accountId   = led.getAttribute('data-account-id') || '';
+            var clientName  = led.getAttribute('data-client-name') || '';
+            var periodLabel = led.getAttribute('data-period-label') || '';
+            var accountName = led.getAttribute('data-account-name') || '';
+
+            var metaEl = document.getElementById('stageFilesMeta');
+            var line1 = clientName;
+            var line2 = (stageLabelsFiles[stage] || stage) + '  \u00b7  ' + periodLabel;
+            if (stage === 'stage1' && accountName) {
+                line2 += '  \u00b7  ' + accountName;
+            }
+            metaEl.innerHTML = '<strong>' + escapeHtml(line1) + '</strong><br>' + escapeHtml(line2);
+            document.getElementById('stageFilesLoading').style.display = '';
+            document.getElementById('stageFilesEmpty').style.display = 'none';
+            document.getElementById('stageFilesTableWrap').style.display = 'none';
+            document.getElementById('stageFilesBody').innerHTML = '';
+            bsStageFilesModal.show();
+
+            var url = window.location.href.split('?')[0]
+                + '?action=stage_files&period_id=' + encodeURIComponent(periodId)
+                + '&stage=' + encodeURIComponent(stage);
+            if (accountId) {
+                url += '&account_id=' + encodeURIComponent(accountId);
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                document.getElementById('stageFilesLoading').style.display = 'none';
+                var files = (xhr.response && xhr.response.files) ? xhr.response.files : [];
+                if (files.length === 0) {
+                    document.getElementById('stageFilesEmpty').style.display = '';
+                    return;
+                }
+                var tbody = document.getElementById('stageFilesBody');
+                var html = '';
+                files.forEach(function (f, i) {
+                    var uploadDate = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '-';
+                    html += '<tr>'
+                        + '<td>' + (i + 1) + '</td>'
+                        + '<td class="text-break">' + escapeHtml(f.original_filename) + '</td>'
+                        + '<td class="text-nowrap">' + uploadDate + '</td>'
+                        + '<td>' + escapeHtml(f.uploaded_by_name) + '</td>'
+                        + '</tr>';
+                });
+                tbody.innerHTML = html;
+                document.getElementById('stageFilesTableWrap').style.display = '';
+            });
+            xhr.addEventListener('error', function () {
+                document.getElementById('stageFilesLoading').style.display = 'none';
+                document.getElementById('stageFilesEmpty').textContent = 'Failed to load files.';
+                document.getElementById('stageFilesEmpty').style.display = '';
+            });
+            xhr.send();
+        });
+
+        function escapeHtml(str) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(str || ''));
+            return div.innerHTML;
+        }
+    }
+
+    // ---- Stage Note Modal (Chat) ----
     var noteModal = document.getElementById('noteModal');
     if (noteModal) {
-        var noteModalText     = document.getElementById('noteModalText');
-        var noteModalReadonly = document.getElementById('noteModalReadonly');
-        var noteModalMeta     = document.getElementById('noteModalMeta');
-        var noteCharCount     = document.getElementById('noteCharCount');
-        var noteSaveBtn       = document.getElementById('noteSaveBtn');
-        var _notePeriodId     = '';
-        var _noteStage        = '';
-        var _noteAccountId    = '0';
-        var _noteTriggerBtn   = null;
+        var noteChatArea    = document.getElementById('noteChatArea');
+        var noteChatEmpty   = document.getElementById('noteChatEmpty');
+        var noteModalMeta   = document.getElementById('noteModalMeta');
+        var noteMessageInput = document.getElementById('noteMessageInput');
+        var noteSendBtn     = document.getElementById('noteSendBtn');
+        var _notePeriodId   = '';
+        var _noteStage      = '';
+        var _noteAccountId  = '0';
+        var _noteTriggerBtn = null;
+        var _noteEntries    = [];
 
         var stageLabels = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3', stage4: 'Stage 4' };
+
+        function noteEscapeHtml(str) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(str || ''));
+            return div.innerHTML;
+        }
+
+        function renderChatEntries(entries) {
+            if (!entries || entries.length === 0) {
+                noteChatArea.innerHTML = '';
+                noteChatArea.style.display = 'none';
+                noteChatEmpty.style.display = '';
+                return;
+            }
+            noteChatEmpty.style.display = 'none';
+            noteChatArea.style.display = '';
+            var html = '';
+            entries.forEach(function (e) {
+                var timeStr = e.at || '';
+                if (timeStr) {
+                    var d = new Date(timeStr.replace(/-/g, '/'));
+                    if (!isNaN(d.getTime())) {
+                        timeStr = d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                                + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    }
+                }
+                html += '<div class="note-chat-entry">'
+                    + '<div class="note-chat-header">'
+                    + '<span class="note-chat-author">' + noteEscapeHtml(e.by || 'Unknown') + '</span>'
+                    + (timeStr ? '<span class="note-chat-time">' + noteEscapeHtml(timeStr) + '</span>' : '')
+                    + '</div>'
+                    + '<div class="note-chat-msg">' + noteEscapeHtml(e.msg || '') + '</div>'
+                    + '</div>';
+            });
+            noteChatArea.innerHTML = html;
+            noteChatArea.scrollTop = noteChatArea.scrollHeight;
+        }
+
+        function parseNoteEntries(raw) {
+            if (!raw || raw.trim() === '') return [];
+            try {
+                var parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (ex) {}
+            // Legacy plain text
+            return [{ by: 'System', at: '', msg: raw }];
+        }
 
         noteModal.addEventListener('show.bs.modal', function (event) {
             var btn = event.relatedTarget;
@@ -307,42 +443,32 @@ document.addEventListener('DOMContentLoaded', function () {
             _notePeriodId    = btn.getAttribute('data-period-id');
             _noteStage       = btn.getAttribute('data-stage');
             _noteAccountId   = btn.getAttribute('data-account-id') || '0';
-            var canEdit      = btn.getAttribute('data-can-edit') === '1';
-            var noteText     = btn.getAttribute('data-note') || '';
+            var rawNote      = btn.getAttribute('data-note') || '';
             var periodLabel  = btn.getAttribute('data-period-label') || ('Period #' + _notePeriodId);
 
             noteModalMeta.textContent = (stageLabels[_noteStage] || _noteStage) + '  \u00b7  ' + periodLabel;
 
-            if (canEdit) {
-                noteModalText.value = noteText;
-                noteModalText.style.display = '';
-                noteModalReadonly.style.display = 'none';
-                noteSaveBtn.style.display = '';
-                noteCharCount.textContent = noteText.length + ' / 1000';
-                setTimeout(function () { noteModalText.focus(); }, 300);
-            } else {
-                noteModalReadonly.textContent = noteText || '(no note saved)';
-                noteModalText.style.display = 'none';
-                noteModalReadonly.style.display = '';
-                noteSaveBtn.style.display = 'none';
-                noteCharCount.textContent = '';
-            }
+            _noteEntries = parseNoteEntries(rawNote);
+            renderChatEntries(_noteEntries);
+
+            noteMessageInput.value = '';
+            noteMessageInput.style.height = 'auto';
+            setTimeout(function () { noteMessageInput.focus(); }, 300);
         });
 
-        noteModalText.addEventListener('input', function () {
-            noteCharCount.textContent = this.value.length + ' / 1000';
-        });
+        function sendNote() {
+            var msg = noteMessageInput.value.trim();
+            if (msg === '') return;
 
-        noteSaveBtn.addEventListener('click', function () {
-            var note = noteModalText.value.trim();
-            noteSaveBtn.disabled = true;
+            noteSendBtn.disabled = true;
+            noteMessageInput.disabled = true;
 
             var formData = new FormData();
             formData.append('csrf_token', csrfToken);
             formData.append('period_id', _notePeriodId);
             formData.append('stage', _noteStage);
             formData.append('account_id', _noteAccountId);
-            formData.append('note', note);
+            formData.append('message', msg);
 
             var xhr = new XMLHttpRequest();
             var saveUrl = window.location.href.split('?')[0] + '?action=save_note';
@@ -351,31 +477,42 @@ document.addEventListener('DOMContentLoaded', function () {
             xhr.responseType = 'json';
 
             xhr.addEventListener('load', function () {
-                noteSaveBtn.disabled = false;
+                noteSendBtn.disabled = false;
+                noteMessageInput.disabled = false;
                 if (xhr.status >= 200 && xhr.status < 300 && xhr.response && xhr.response.success) {
+                    var entry = xhr.response.entry;
+                    _noteEntries.push(entry);
+                    renderChatEntries(_noteEntries);
+                    noteMessageInput.value = '';
+                    noteMessageInput.style.height = 'auto';
+                    noteMessageInput.focus();
+
+                    // Update the trigger button's data-note with new JSON
                     if (_noteTriggerBtn) {
-                        _noteTriggerBtn.setAttribute('data-note', note);
-                        if (note !== '') {
-                            _noteTriggerBtn.classList.add('note-has-content');
-                            _noteTriggerBtn.title = 'View/Edit Note';
-                        } else {
-                            _noteTriggerBtn.classList.remove('note-has-content');
-                            _noteTriggerBtn.title = 'Add Note';
-                        }
+                        _noteTriggerBtn.setAttribute('data-note', JSON.stringify(_noteEntries));
+                        _noteTriggerBtn.classList.add('note-has-content');
+                        _noteTriggerBtn.title = 'View Notes';
                     }
-                    bootstrap.Modal.getInstance(noteModal).hide();
                 } else {
-                    var msg = (xhr.response && xhr.response.message) ? xhr.response.message : 'Failed to save note.';
-                    alert(msg);
+                    var errMsg = (xhr.response && xhr.response.message) ? xhr.response.message : 'Failed to send note.';
+                    alert(errMsg);
                 }
             });
 
             xhr.addEventListener('error', function () {
-                noteSaveBtn.disabled = false;
+                noteSendBtn.disabled = false;
+                noteMessageInput.disabled = false;
                 alert('Network error. Please try again.');
             });
 
             xhr.send(formData);
+        }
+
+        noteSendBtn.addEventListener('click', sendNote);
+
+        noteMessageInput.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
     }
 });

@@ -82,12 +82,17 @@ ob_start();
 
             <td class="text-center">
                 <?php if ($s1): ?>
+                <?php $s1IsAuto = (($s1['bank_feed_mode'] ?? 'manual') === 'automatic'); ?>
                 <div class="stage-actions">
                     <span class="led led-<?= e($s1['status']) ?>"
                           data-led
+                          <?php if (!$s1IsAuto && in_array($s1['status'], ['green', 'orange'])): ?>data-led-clickable<?php endif; ?>
                           data-period-id="<?= $pid ?>"
                           data-stage="stage1"
                           data-account-id="<?= $s1['account_id'] ?>"
+                          data-client-name="<?= e($period['client_name']) ?>"
+                          data-period-label="<?= e($period['period_label']) ?>"
+                          data-account-name="<?= e($s1['account_name']) ?>"
                           title="<?= e(ucfirst($s1['status'])) ?>"></span>
                     <?php if (!$locked && hasRole(stageUploadRoles('stage1'))): ?>
                         <div class="stage-icon-wrap">
@@ -135,18 +140,17 @@ ob_start();
                     <?php
                         $s1NoteKey = 'stage1_' . (int)$s1['account_id'];
                         $s1Note    = $data['notes'][$s1NoteKey] ?? '';
-                        $s1CanEdit = hasRole(stageUploadRoles('stage1'));
+                        $s1HasNotes = $s1Note !== '';
                     ?>
                     <button type="button"
-                            class="btn p-0 border-0 bg-transparent note-btn<?= $s1Note !== '' ? ' note-has-content' : '' ?>"
+                            class="btn p-0 border-0 bg-transparent note-btn<?= $s1HasNotes ? ' note-has-content' : '' ?>"
                             data-bs-toggle="modal" data-bs-target="#noteModal"
                             data-period-id="<?= $pid ?>"
                             data-period-label="<?= e($period['period_label']) ?>"
                             data-stage="stage1"
                             data-account-id="<?= (int)$s1['account_id'] ?>"
                             data-note="<?= e($s1Note) ?>"
-                            data-can-edit="<?= $s1CanEdit ? '1' : '0' ?>"
-                            title="<?= $s1Note !== '' ? 'View/Edit Note' : 'Add Note' ?>">
+                            title="<?= $s1HasNotes ? 'View Notes' : 'Add Note' ?>">
                         <i class="bi bi-chat-left-text note-icon"></i>
                     </button>
                 </div>
@@ -164,8 +168,11 @@ ob_start();
                     <div class="stage-actions">
                         <span class="led led-<?= e($ss['status']) ?>"
                               data-led
+                              <?php if (in_array($ss['status'], ['green', 'orange'])): ?>data-led-clickable<?php endif; ?>
                               data-period-id="<?= $pid ?>"
                               data-stage="<?= $sn ?>"
+                              data-client-name="<?= e($period['client_name']) ?>"
+                              data-period-label="<?= e($period['period_label']) ?>"
                               title="<?= e(ucfirst($ss['status'])) ?>"></span>
                         <?php if (!$locked && hasRole(stageUploadRoles($sn))): ?>
                             <div class="stage-icon-wrap">
@@ -210,18 +217,17 @@ ob_start();
                         <?php
                             $ssNoteKey = $sn . '_0';
                             $ssNote    = $data['notes'][$ssNoteKey] ?? '';
-                            $ssCanEdit = hasRole(stageUploadRoles($sn));
+                            $ssHasNotes = $ssNote !== '';
                         ?>
                         <button type="button"
-                                class="btn p-0 border-0 bg-transparent note-btn<?= $ssNote !== '' ? ' note-has-content' : '' ?>"
+                                class="btn p-0 border-0 bg-transparent note-btn<?= $ssHasNotes ? ' note-has-content' : '' ?>"
                                 data-bs-toggle="modal" data-bs-target="#noteModal"
                                 data-period-id="<?= $pid ?>"
                                 data-period-label="<?= e($period['period_label']) ?>"
                                 data-stage="<?= $sn ?>"
                                 data-account-id="0"
                                 data-note="<?= e($ssNote) ?>"
-                                data-can-edit="<?= $ssCanEdit ? '1' : '0' ?>"
-                                title="<?= $ssNote !== '' ? 'View/Edit Note' : 'Add Note' ?>">
+                                title="<?= $ssHasNotes ? 'View Notes' : 'Add Note' ?>">
                             <i class="bi bi-chat-left-text note-icon"></i>
                         </button>
                     </div>
@@ -327,25 +333,60 @@ ob_start();
 
 <!-- Stage Note Modal -->
 <div class="modal fade" id="noteModal" tabindex="-1" aria-labelledby="noteModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
     <div class="modal-content">
       <div class="modal-header py-2">
-        <h6 class="modal-title mb-0" id="noteModalLabel"><i class="bi bi-chat-left-text"></i> Stage Note</h6>
+        <h6 class="modal-title mb-0" id="noteModalLabel"><i class="bi bi-chat-left-text"></i> Stage Notes</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body pb-2">
-        <div id="noteModalMeta" class="text-muted small mb-2"></div>
-        <textarea id="noteModalText" class="form-control" rows="5" maxlength="1000"
-                  placeholder="Enter note..." style="font-size:0.85rem;resize:vertical;"></textarea>
-        <div id="noteModalReadonly" class="border rounded p-2 bg-light"
-             style="font-size:0.85rem;min-height:80px;white-space:pre-wrap;display:none;"></div>
-        <div class="text-end mt-1"><small id="noteCharCount" class="text-muted"></small></div>
+      <div class="modal-body p-0">
+        <div id="noteModalMeta" class="text-muted small px-3 pt-2 pb-1"></div>
+        <div id="noteChatArea" class="note-chat-area px-3"></div>
+        <div id="noteChatEmpty" class="text-muted small text-center py-3" style="display:none;">No notes yet.</div>
+      </div>
+      <div class="modal-footer py-2 px-3">
+        <div class="input-group input-group-sm w-100 align-items-end">
+          <textarea id="noteMessageInput" class="form-control" placeholder="Type a note..." maxlength="1000" rows="1" style="resize:none;overflow:hidden;"></textarea>
+          <button type="button" class="btn btn-primary" id="noteSendBtn" title="Send">
+            <i class="bi bi-send"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stage Files Modal -->
+<div class="modal fade" id="stageFilesModal" tabindex="-1" aria-labelledby="stageFilesModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0" id="stageFilesModalLabel"><i class="bi bi-folder2-open"></i> Uploaded Files</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-2">
+        <div id="stageFilesMeta" class="text-muted small mb-2"></div>
+        <div id="stageFilesLoading" class="text-center py-3">
+          <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+          <span class="ms-2 text-muted small">Loading files...</span>
+        </div>
+        <div id="stageFilesEmpty" class="text-muted small text-center py-3" style="display:none;">No files found.</div>
+        <div class="table-responsive" id="stageFilesTableWrap" style="display:none;">
+          <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem;">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>File Name</th>
+                <th>Uploaded</th>
+                <th>By</th>
+              </tr>
+            </thead>
+            <tbody id="stageFilesBody"></tbody>
+          </table>
+        </div>
       </div>
       <div class="modal-footer py-2">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary btn-sm" id="noteSaveBtn">
-            <i class="bi bi-floppy"></i> Save
-        </button>
       </div>
     </div>
   </div>

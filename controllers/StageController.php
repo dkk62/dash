@@ -437,6 +437,23 @@ if ($action === 'mark_downloaded' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ---- CHECK EXISTING FILES (pre-upload confirmation) ----
+if ($action === 'stage_files') {
+    header('Content-Type: application/json');
+
+    $periodId  = (int) ($_GET['period_id'] ?? 0);
+    $stage     = $_GET['stage'] ?? '';
+    $accountId = !empty($_GET['account_id']) ? (int) $_GET['account_id'] : null;
+
+    if (!in_array($stage, ['stage1', 'stage2', 'stage3', 'stage4'])) {
+        echo json_encode(['files' => []]);
+        exit;
+    }
+
+    $files = FileRecord::forStageDetailed($periodId, $stage, $accountId);
+    echo json_encode(['files' => $files]);
+    exit;
+}
+
 if ($action === 'check_existing_files') {
     header('Content-Type: application/json');
 

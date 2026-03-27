@@ -107,7 +107,14 @@ foreach ($allProcessors as $recipient) {
             if (!empty($n['account_name'])) {
                 $body .= "Account: {$n['account_name']}\n";
             }
-            $body .= "Note:    {$n['note']}\n\n";
+            $entries = StageNote::parseEntries($n['note']);
+            // Show only today's entries in the digest
+            $todayStr = date('Y-m-d');
+            $todayEntries = array_filter($entries, fn($e) => str_starts_with($e['at'] ?? '', $todayStr));
+            foreach ($todayEntries as $e) {
+                $body .= "  [{$e['at']}] {$e['by']}: {$e['msg']}\n";
+            }
+            $body .= "\n";
         }
     }
 
