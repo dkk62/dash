@@ -227,3 +227,15 @@ CREATE TABLE IF NOT EXISTS `stage_notes` (
   KEY `idx_notes_period` (`period_id`),
   CONSTRAINT `stage_notes_ibfk_1` FOREIGN KEY (`period_id`) REFERENCES `periods` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- Table: settings
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `settings` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `setting_key` VARCHAR(100) NOT NULL,
+  `setting_value` TEXT DEFAULT NULL,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_setting_key` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

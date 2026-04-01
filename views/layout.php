@@ -32,12 +32,14 @@
                         <i class="bi bi-hourglass-split"></i> Pending Work
                     </a>
                 </li>
-                <?php if (hasRole(['admin'])): ?>
+                <?php if (hasRole(['admin']) || hasClientPermission()): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=clients')) ?>">
                         <i class="bi bi-people"></i> Clients
                     </a>
                 </li>
+                <?php endif; ?>
+                <?php if (hasRole(['admin'])): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=users')) ?>">
                         <i class="bi bi-person-gear"></i> Users
@@ -46,6 +48,11 @@
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=logs')) ?>">
                         <i class="bi bi-journal-text"></i> Logs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= e(appUrl('?action=settings')) ?>">
+                        <i class="bi bi-gear"></i> Settings
                     </a>
                 </li>
                 <?php endif; ?>

@@ -166,4 +166,77 @@ if (!empty($allSentIds)) {
 
 echo '[' . date('Y-m-d H:i:s') . '] Done. Marked ' . count($allSentIds) . ' notification(s) as sent.' . PHP_EOL;
 
-echo '[' . date('Y-m-d H:i:s') . '] Done. Marked ' . count($allSent) . ' notification(s) as sent.' . PHP_EOL;
+// ============================================================================
+// PENDING WORK REPORT FOR ADMIN
+// ============================================================================
+require_once BASE_PATH . '/models/Setting.php';
+require_once BASE_PATH . '/models/Period.php';
+require_once BASE_PATH . '/models/Account.php';
+require_once BASE_PATH . '/models/Stage1Status.php';
+require_once BASE_PATH . '/models/StageStatus.php';
+
+$pendingReportEmail = Setting::get('pending_report_email', '');
+
+if ($pendingReportEmail !== '' && $pendingReportEmail !== null && filter_var($pendingReportEmail, FILTER_VALIDATE_EMAIL)) {
+    echo '[' . date('Y-m-d H:i:s') . '] Building pending work report for ' . $pendingReportEmail . '...' . PHP_EOL;
+
+    $allPeriods = Period::allWithClient();
+
+    usort($allPeriods, function (array $a, array $b): int {
+        $aClient = $a['client_name'] ?? '';
+        $bClient = $b['client_name'] ?? '';
+        if ($aClient !== $bClient) return strcasecmp($aClient, $bClient);
+        $aTs = periodLabelSortTimestamp((string)($a['period_label'] ?? ''), $a['created_at'] ?? null);
+        $bTs = periodLabelSortTimestamp((string)($b['period_label'] ?? ''), $b['created_at'] ?? null);
+        return $aTs <=> $bTs;
+    });
+
+    $allPeriods = array_values(array_filter($allPeriods, fn($p) => isPeriodBeforeCurrentPeriod($p['period_label'])));
+
+    if (!empty($allPeriods)) {
+        $allPeriodIds = array_map(fn($p) => (int)$p['id'], $allPeriods);
+        $bulkS1     = Stage1Status::bulkByPeriods($allPeriodIds);
+        $bulkStages = StageStatus::bulkByPeriods($allPeriodIds);
+
+        $processorUsers = User::byRoles(['processor0', 'processor1']);
+        $reportData = buildPendingReportData($processorUsers, $allPeriods, $bulkS1, $bulkStages);
+
+        if (!empty($reportData)) {
+            $reportDate = date('m/d/Y');
+            $subject = "Pending Work Report - {$reportDate}";
+            $htmlBody = buildPendingReportHtml($reportData, $reportDate);
+
+            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host     = SMTP_HOST;
+                $mail->SMTPAuth = true;
+                $mail->Username = SMTP_USER;
+                $mail->Password = SMTP_PASS;
+                if (SMTP_SECURE === 'ssl') {
+                    $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+                } elseif (SMTP_SECURE === 'tls') {
+                    $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                } else {
+                    $mail->SMTPSecure = '';
+                }
+                $mail->Port    = SMTP_PORT;
+                $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+                $mail->addAddress($pendingReportEmail);
+                $mail->Subject = $subject;
+                $mail->isHTML(true);
+                $mail->Body    = $htmlBody;
+                $mail->send();
+                echo '[' . date('Y-m-d H:i:s') . "] Sent pending work report to {$pendingReportEmail}." . PHP_EOL;
+            } catch (\Exception $e) {
+                echo '[' . date('Y-m-d H:i:s') . "] FAILED sending pending work report to {$pendingReportEmail}: " . $e->getMessage() . PHP_EOL;
+            }
+        } else {
+            echo '[' . date('Y-m-d H:i:s') . '] No pending work to report.' . PHP_EOL;
+        }
+    } else {
+        echo '[' . date('Y-m-d H:i:s') . '] No past periods found for pending report.' . PHP_EOL;
+    }
+} else {
+    echo '[' . date('Y-m-d H:i:s') . '] No pending report email configured. Skipping.' . PHP_EOL;
+}

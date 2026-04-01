@@ -324,10 +324,10 @@ $page         = min($page, $totalPages);
 $pageClientSet = array_flip(array_slice($orderedClientIds, ($page - 1) * $perPage, $perPage));
 $dashboardData = array_values(array_filter($allDashboardData, fn($d) => isset($pageClientSet[(int)$d['period']['client_id']])));
 
-// --- Reminder data (admin only) ---
+// --- Reminder data (admin or users with reminder permission) ---
 // Last reminder sent date for every client (across all pages).
 $lastReminderByClientId = [];
-if (hasRole(['admin'])) {
+if (hasRole(['admin']) || hasReminderPermission()) {
     $lastReminderByClientId = LogModel::lastReminderByClients($orderedClientIds);
 
     // Build list of unique email targets that have pending reminders, across ALL periods/pages.

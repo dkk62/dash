@@ -56,6 +56,7 @@ if ($action === 'period_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         Period::create($clientId, $label);
         setFlash('success', 'Period created with status rows initialized.');
+        redirect('?action=accounts&client_id=' . $clientId);
     } catch (\PDOException $ex) {
         if ($ex->getCode() == 23000) {
             setFlash('danger', 'This period label already exists for this client.');
@@ -89,7 +90,7 @@ if ($action === 'period_generate' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             [$created, $skipped] = createPeriodLabels($clientId, [$fyLabel]);
             setFlash('success', "Fiscal period result: {$created} created, {$skipped} skipped.");
-            redirect('?action=periods&client_id=' . $clientId);
+            redirect('?action=accounts&client_id=' . $clientId);
         }
 
         if ($mode === 'monthly_range') {
@@ -110,7 +111,7 @@ if ($action === 'period_generate' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             [$created, $skipped] = createPeriodLabels($clientId, $labels);
             setFlash('success', "Monthly generation result: {$created} created, {$skipped} skipped.");
-            redirect('?action=periods&client_id=' . $clientId);
+            redirect('?action=accounts&client_id=' . $clientId);
         }
 
         setFlash('danger', 'Invalid generation mode.');

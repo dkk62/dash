@@ -29,8 +29,9 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             setFlash('success', 'Client updated.');
         } else {
             // Create new - password is optional
-            Client::create($name, $email, $phone, $cycleType, $password ?: null, $processor0Id, $processor1Id);
-            setFlash('success', 'Client created.');
+            $newClientId = Client::create($name, $email, $phone, $cycleType, $password ?: null, $processor0Id, $processor1Id);
+            setFlash('success', 'Client created. Now add accounts for this client.');
+            redirect('?action=accounts&client_id=' . $newClientId);
         }
     } catch (RuntimeException $e) {
         setFlash('danger', $e->getMessage());

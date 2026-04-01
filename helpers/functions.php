@@ -395,3 +395,244 @@ function isPeriodBeforeCurrentPeriod(string $label): bool {
     // Custom labels: include in reminders.
     return true;
 }
+
+/**
+ * Check if the current user has permission to manage clients (create/edit/delete).
+ * Admin always has access; other users need the perm_client_edit setting.
+ */
+function hasClientPermission(): bool {
+    if (hasRole(['admin'])) return true;
+    if (!isLoggedIn()) return false;
+    require_once BASE_PATH . '/models/Setting.php';
+    return Setting::userHasPermission((int)$_SESSION['user_id'], 'perm_client_edit');
+}
+
+/**
+ * Require client management permission or abort with 403.
+ */
+function requireClientPermission(): void {
+    if (!hasClientPermission()) {
+        http_response_code(403);
+        echo 'Access denied.';
+        exit;
+    }
+}
+
+/**
+ * Check if the current user has permission to send reminder emails.
+ * Admin always has access; other users need the perm_send_reminders setting.
+ */
+function hasReminderPermission(): bool {
+    if (hasRole(['admin'])) return true;
+    if (!isLoggedIn()) return false;
+    require_once BASE_PATH . '/models/Setting.php';
+    return Setting::userHasPermission((int)$_SESSION['user_id'], 'perm_send_reminders');
+}
+
+/**
+ * Require reminder permission or abort with 403.
+ */
+function requireReminderPermission(): void {
+    if (!hasReminderPermission()) {
+        http_response_code(403);
+        echo 'Access denied.';
+        exit;
+    }
+}
+
+/**
+ * Build structured pending report data for all processors.
+ * Returns array of [ 'user_name'=>, 'role_label'=>, 'items'=>[ ['stage'=>, 'client'=>, 'account'=>|null, 'periods'=>[...]] ] ]
+ */
+function buildPendingReportData(array $processorUsers, array $allPeriods, array $bulkS1, array $bulkStages): array {
+    $reportData = [];
+
+    foreach ($processorUsers as $user) {
+        $uid = (int)$user['id'];
+        $userClientIds = Client::getClientIdsForUser($uid);
+        if (empty($userClientIds)) continue;
+
+        $clientIdSet = array_flip($userClientIds);
+        $userPeriods = array_values(array_filter($allPeriods, fn($p) => isset($clientIdSet[(int)$p['client_id']])));
+        if (empty($userPeriods)) continue;
+
+        $clientPeriods = [];
+        $clientNames = [];
+        foreach ($userPeriods as $p) {
+            $cid = (int)$p['client_id'];
+            $clientPeriods[$cid][$p['period_label']] = $p;
+            $clientNames[$cid] = $p['client_name'];
+        }
+
+        // Collect items grouped by stage+client+account => periods[]
+        $items = [];
+
+        if ($user['role'] === 'processor0') {
+            // Stage 1 pending (grey) — grouped by client+account
+            $s1Groups = []; // key => ['client'=>, 'account'=>, 'periods'=>[]]
+            foreach ($clientPeriods as $cid => $periodsByLabel) {
+                foreach ($periodsByLabel as $label => $p) {
+                    $pid = (int)$p['id'];
+                    foreach ($bulkS1[$pid] ?? [] as $s1) {
+                        if ($s1['status'] === 'grey') {
+                            $acctName = $s1['account_name'];
+                            if (($s1['bank_feed_mode'] ?? 'manual') === 'automatic') {
+                                $acctName .= ' (auto)';
+                            }
+                            $key = $cid . '|' . $s1['account_id'];
+                            if (!isset($s1Groups[$key])) {
+                                $s1Groups[$key] = ['stage' => 'Stage 1', 'client' => $clientNames[$cid], 'account' => $acctName, 'periods' => []];
+                            }
+                            $s1Groups[$key]['periods'][] = $label;
+                        }
+                    }
+                }
+            }
+            foreach ($s1Groups as $g) $items[] = $g;
+
+            // Stage 3 pending — grouped by client
+            $s3Groups = [];
+            foreach ($clientPeriods as $cid => $periodsByLabel) {
+                foreach ($periodsByLabel as $label => $p) {
+                    $pid = (int)$p['id'];
+                    $stageStatuses = $bulkStages[$pid] ?? [];
+                    $s2Status = $stageStatuses['stage2']['status'] ?? 'grey';
+                    $s3Status = $stageStatuses['stage3']['status'] ?? 'grey';
+                    if ($s2Status !== 'grey' && $s3Status === 'grey') {
+                        if (!isset($s3Groups[$cid])) {
+                            $s3Groups[$cid] = ['stage' => 'Stage 3', 'client' => $clientNames[$cid], 'account' => null, 'periods' => []];
+                        }
+                        $s3Groups[$cid]['periods'][] = $label;
+                    }
+                }
+            }
+            foreach ($s3Groups as $g) $items[] = $g;
+
+        } elseif ($user['role'] === 'processor1') {
+            // Stage 2 pending — grouped by client
+            $s2Groups = [];
+            foreach ($clientPeriods as $cid => $periodsByLabel) {
+                foreach ($periodsByLabel as $label => $p) {
+                    $pid = (int)$p['id'];
+                    $s1statuses = $bulkS1[$pid] ?? [];
+                    $stageStatuses = $bulkStages[$pid] ?? [];
+                    $allS1NonGrey = !empty($s1statuses);
+                    foreach ($s1statuses as $s1) {
+                        if ($s1['status'] === 'grey') { $allS1NonGrey = false; break; }
+                    }
+                    $s2Status = $stageStatuses['stage2']['status'] ?? 'grey';
+                    if ($allS1NonGrey && $s2Status === 'grey') {
+                        if (!isset($s2Groups[$cid])) {
+                            $s2Groups[$cid] = ['stage' => 'Stage 2', 'client' => $clientNames[$cid], 'account' => null, 'periods' => []];
+                        }
+                        $s2Groups[$cid]['periods'][] = $label;
+                    }
+                }
+            }
+            foreach ($s2Groups as $g) $items[] = $g;
+
+            // Stage 4 pending — grouped by client
+            $s4Groups = [];
+            foreach ($clientPeriods as $cid => $periodsByLabel) {
+                foreach ($periodsByLabel as $label => $p) {
+                    $pid = (int)$p['id'];
+                    $stageStatuses = $bulkStages[$pid] ?? [];
+                    $s3Status = $stageStatuses['stage3']['status'] ?? 'grey';
+                    $s4Status = $stageStatuses['stage4']['status'] ?? 'grey';
+                    if ($s3Status !== 'grey' && $s4Status === 'grey') {
+                        if (!isset($s4Groups[$cid])) {
+                            $s4Groups[$cid] = ['stage' => 'Stage 4', 'client' => $clientNames[$cid], 'account' => null, 'periods' => []];
+                        }
+                        $s4Groups[$cid]['periods'][] = $label;
+                    }
+                }
+            }
+            foreach ($s4Groups as $g) $items[] = $g;
+        }
+
+        if (!empty($items)) {
+            $roleLabel = $user['role'] === 'processor0' ? 'Processor 0' : 'Processor 1';
+            $reportData[] = [
+                'user_name'  => $user['name'],
+                'role_label' => $roleLabel,
+                'items'      => $items,
+            ];
+        }
+    }
+
+    return $reportData;
+}
+
+/**
+ * Build mobile-friendly HTML email body for the pending work report.
+ */
+function buildPendingReportHtml(array $reportData, string $reportDate): string {
+    $h = function(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); };
+
+    $html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+          . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+          . '<style>'
+          . 'body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333;background:#f4f4f4;}'
+          . '.wrap{max-width:720px;margin:0 auto;background:#fff;}'
+          . '.header{background:#1F7A6B;color:#fff;padding:14px 16px;}'
+          . '.header h1{margin:0;font-size:16px;font-weight:600;}'
+          . '.header p{margin:3px 0 0;font-size:11px;opacity:.85;}'
+          . '.section{padding:0 8px;}'
+          . '.user-header{background:#343a40;color:#fff;padding:8px 12px;margin:12px 0 0;border-radius:5px 5px 0 0;font-size:13px;}'
+          . '.user-header .badge{background:#17a2b8;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:6px;}'
+          . 'table{width:100%;border-collapse:collapse;margin-bottom:12px;}'
+          . 'table th{background:#e9ecef;text-align:left;padding:5px 7px;font-size:11px;border:1px solid #dee2e6;white-space:nowrap;}'
+          . 'table td{padding:5px 7px;border:1px solid #dee2e6;font-size:11px;vertical-align:top;}'
+          . '.stage-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;}'
+          . '.s1{background:#6c757d;}.s2{background:#0d6efd;}.s3{background:#fd7e14;}.s4{background:#6f42c1;}'
+          . '.period-tag{display:inline-block;background:#fff3cd;color:#664d03;border:1px solid #ffecb5;padding:0 5px;border-radius:3px;font-size:10px;margin:1px 1px;white-space:nowrap;}'
+          . '.footer{padding:12px 16px;font-size:10px;color:#888;border-top:1px solid #eee;margin-top:6px;}'
+          . '@media(max-width:480px){table th,table td{padding:4px 5px;font-size:10px;} .header h1{font-size:14px;}}'
+          . '</style></head><body>'
+          . '<div class="wrap">';
+
+    $html .= '<div class="header">'
+           . '<h1>Pending Work Report</h1>'
+           . '<p>Date: ' . $h($reportDate) . '</p>'
+           . '</div>';
+
+    $html .= '<div class="section">';
+
+    $stageBadgeClass = ['Stage 1' => 's1', 'Stage 2' => 's2', 'Stage 3' => 's3', 'Stage 4' => 's4'];
+
+    foreach ($reportData as $section) {
+        $html .= '<div class="user-header">'
+               . $h($section['user_name'])
+               . '<span class="badge">' . $h($section['role_label']) . '</span>'
+               . '</div>';
+
+        $html .= '<table><thead><tr>'
+               . '<th>Stage</th>'
+               . '<th>Client</th>'
+               . '<th>Account</th>'
+               . '<th>Pending Periods</th>'
+               . '</tr></thead><tbody>';
+
+        foreach ($section['items'] as $item) {
+            $cls = $stageBadgeClass[$item['stage']] ?? 's1';
+            $html .= '<tr>';
+            $html .= '<td><span class="stage-badge ' . $cls . '">' . $h($item['stage']) . '</span></td>';
+            $html .= '<td>' . $h($item['client']) . '</td>';
+            $html .= '<td>' . ($item['account'] ? $h($item['account']) : '&mdash;') . '</td>';
+            $html .= '<td>';
+            foreach ($item['periods'] as $pl) {
+                $html .= '<span class="period-tag">' . $h($pl) . '</span> ';
+            }
+            $html .= '</td>';
+            $html .= '</tr>';
+        }
+
+        $html .= '</tbody></table>';
+    }
+
+    $html .= '</div>';
+    $html .= '<div class="footer">Work Progress System &bull; This is an automated report.</div>';
+    $html .= '</div></body></html>';
+
+    return $html;
+}

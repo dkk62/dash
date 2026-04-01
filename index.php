@@ -74,7 +74,7 @@ switch ($action) {
     case 'client_save':
     case 'client_edit':
     case 'client_delete':
-        requireRole(['admin']);
+        requireClientPermission();
         require_once BASE_PATH . '/controllers/ClientController.php';
         break;
 
@@ -82,7 +82,7 @@ switch ($action) {
     case 'accounts':
     case 'account_save':
     case 'account_delete':
-        requireRole(['admin']);
+        requireClientPermission();
         require_once BASE_PATH . '/controllers/AccountController.php';
         break;
 
@@ -91,7 +91,7 @@ switch ($action) {
     case 'period_save':
     case 'period_generate':
     case 'period_delete':
-        requireRole(['admin']);
+        requireClientPermission();
         require_once BASE_PATH . '/controllers/PeriodController.php';
         break;
 
@@ -114,7 +114,7 @@ switch ($action) {
 
     // Reminder
     case 'reminder_bulk':
-        requireRole(['admin']);
+        requireReminderPermission();
         require_once BASE_PATH . '/controllers/ReminderBulkController.php';
         break;
 
@@ -123,6 +123,13 @@ switch ($action) {
     case 'unlock':
         requireRole(['admin']);
         require_once BASE_PATH . '/controllers/LockController.php';
+        break;
+
+    // Settings
+    case 'settings':
+    case 'settings_save':
+        requireRole(['admin']);
+        require_once BASE_PATH . '/controllers/SettingsController.php';
         break;
 
     // Logs

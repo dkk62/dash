@@ -52,6 +52,7 @@ ob_start();
     </div>
 
     <div class="col-md-4">
+        <?php if (($client['cycle_type'] ?? 'monthly') === 'monthly'): ?>
         <div class="card mb-3">
             <div class="card-header"><strong>Monthly Manual Add (Dropdown)</strong></div>
             <div class="card-body">
@@ -78,7 +79,9 @@ ob_start();
                 </form>
             </div>
         </div>
+        <?php endif; ?>
 
+        <?php if (($client['cycle_type'] ?? 'monthly') === 'yearly'): ?>
         <div class="card mb-3">
             <div class="card-header"><strong>Fiscal Year (Standardized)</strong></div>
             <div class="card-body">
@@ -100,7 +103,9 @@ ob_start();
                 </form>
             </div>
         </div>
+        <?php endif; ?>
 
+        <?php if (($client['cycle_type'] ?? 'monthly') === 'monthly'): ?>
         <div class="card mb-3">
             <div class="card-header"><strong>Monthly Auto-Create</strong></div>
             <div class="card-body">
@@ -134,6 +139,7 @@ ob_start();
                 </form>
             </div>
         </div>
+        <?php endif; ?>
 
     </div>
 </div>

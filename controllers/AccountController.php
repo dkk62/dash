@@ -20,11 +20,12 @@ if ($action === 'account_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $isActive = isset($_POST['is_active']) ? true : false;
         Account::update($id, $name, $isActive, $bankFeedMode);
         setFlash('success', 'Account updated.');
+        redirect('?action=accounts&client_id=' . $clientId);
     } else {
         Account::create($clientId, $name, $bankFeedMode);
-        setFlash('success', 'Account created.');
+        setFlash('success', 'Account created. Now add periods for this client.');
+        redirect('?action=periods&client_id=' . $clientId);
     }
-    redirect('?action=accounts&client_id=' . $clientId);
 }
 
 if ($action === 'account_delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {

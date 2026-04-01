@@ -7,7 +7,7 @@ ob_start();
 <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
     <h4 class="mb-0"><i class="bi bi-grid-3x3"></i> Work Progress Dashboard - <?= date('m/d/Y') ?></h4>
     <div class="d-flex gap-2 flex-wrap">
-        <?php if (hasRole(['admin']) && !empty($reminderTargets)): ?>
+        <?php if ((hasRole(['admin']) || hasReminderPermission()) && !empty($reminderTargets)): ?>
         <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#reminderModal">
             <i class="bi bi-bell"></i> Send Reminder
         </button>
@@ -38,7 +38,7 @@ ob_start();
             <th class="text-center">Stage 2<br><small>Processed</small></th>
             <th class="text-center">Stage 3<br><small>Reclassified</small></th>
             <th class="text-center">Stage 4<br><small>Reclass. Complete</small></th>
-            <?php if (hasRole(['admin'])): ?><th class="text-center">Last Reminder</th><?php endif; ?>
+            <?php if (hasRole(['admin']) || hasReminderPermission()): ?><th class="text-center">Last Reminder</th><?php endif; ?>
             <th class="text-center">Locked</th>
         </tr>
     </thead>
@@ -234,7 +234,7 @@ ob_start();
                 </td>
                 <?php endforeach; ?>
 
-                <?php if (hasRole(['admin'])): ?>
+                <?php if (hasRole(['admin']) || hasReminderPermission()): ?>
                 <td rowspan="<?= $groupRows ?>" class="text-center align-middle">
                     <?php
                         $cid = (int)$period['client_id'];
@@ -392,7 +392,7 @@ ob_start();
   </div>
 </div>
 
-<?php if (hasRole(['admin']) && !empty($reminderTargets)): ?>
+<?php if ((hasRole(['admin']) || hasReminderPermission()) && !empty($reminderTargets)): ?>
 <style>
 .reminder-modal-dialog { max-width: 95vw; }
 @media (min-width: 768px) { .reminder-modal-dialog { max-width: 66vw; } }

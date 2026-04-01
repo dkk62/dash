@@ -7,6 +7,9 @@ ob_start();
 <a href="<?= e(appUrl('?action=clients')) ?>" class="btn btn-sm btn-outline-secondary mb-3">
     <i class="bi bi-arrow-left"></i> Back to Clients
 </a>
+<a href="<?= e(appUrl('?action=periods&client_id=' . (int)$clientId)) ?>" class="btn btn-sm btn-outline-dark mb-3 ms-2">
+    <i class="bi bi-calendar3"></i> Manage Periods
+</a>
 
 <div class="row">
     <div class="col-md-8">
