@@ -23,6 +23,10 @@ class Period {
             $stmt->execute([$clientId, $label]);
             $periodId = (int) $db->lastInsertId();
 
+            if ($periodId <= 0) {
+                throw new \RuntimeException('Failed to retrieve new period ID after insert.');
+            }
+
             // Auto-create stage1_status for each active account
             $accounts = Account::byClient($clientId);
             $ins = $db->prepare("INSERT INTO stage1_status (period_id, account_id, status) VALUES (?,?,?)");
