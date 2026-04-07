@@ -32,6 +32,11 @@
                         <i class="bi bi-hourglass-split"></i> Pending Work
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= e(appUrl('?action=documents')) ?>">
+                        <i class="bi bi-file-earmark-text"></i> Documents
+                    </a>
+                </li>
                 <?php if (hasRole(['admin']) || hasClientPermission()): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=clients')) ?>">

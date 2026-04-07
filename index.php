@@ -144,6 +144,15 @@ switch ($action) {
         require_once BASE_PATH . '/controllers/NoteController.php';
         break;
 
+    // Client documents (independent of stages)
+    case 'documents':
+    case 'doc_upload':
+    case 'doc_files':
+    case 'doc_download':
+    case 'doc_download_stream':
+        require_once BASE_PATH . '/controllers/DocumentController.php';
+        break;
+
     default:
         redirect('?action=dashboard');
         break;

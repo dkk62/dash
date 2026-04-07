@@ -515,4 +515,273 @@ document.addEventListener('DOMContentLoaded', function () {
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
     }
+
+    // ---- Document Upload (Documents page) ----
+    document.querySelectorAll('.doc-upload-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var form = this.closest('.doc-upload-form');
+            if (form.classList.contains('is-uploading')) return;
+            var clientName = form.getAttribute('data-client-name');
+            if (clientName && !confirm('Upload documents to "' + clientName + '"?')) return;
+            var fileInput = form.querySelector('.doc-file-input');
+            fileInput.click();
+        });
+    });
+
+    document.querySelectorAll('.doc-file-input').forEach(function (input) {
+        input.addEventListener('change', function () {
+            if (this.files.length === 0) return;
+            var fileInput = this;
+            var form = this.closest('.doc-upload-form');
+            if (form.classList.contains('is-uploading')) return;
+            showProgress(form, fileInput.files.length);
+            docUploadViaAjax(form, fileInput);
+        });
+    });
+
+    function docUploadViaAjax(form, fileInput) {
+        var xhr = new XMLHttpRequest();
+        var data = new FormData(form);
+        xhr.open('POST', form.getAttribute('action'), true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.responseType = 'json';
+
+        xhr.upload.addEventListener('progress', function (evt) {
+            if (evt.lengthComputable) updateProgress(form, (evt.loaded / evt.total) * 100);
+        });
+        xhr.upload.addEventListener('loadstart', function () { updateProgress(form, 1); });
+
+        xhr.addEventListener('load', function () {
+            var response = xhr.response;
+            if (xhr.status >= 200 && xhr.status < 300 && response && response.success) {
+                updateProgress(form, 100);
+                var parts = getProgressParts(form);
+                if (parts.percent && response.message) parts.percent.textContent = response.message;
+                setTimeout(function () { window.location.reload(); }, 1500);
+                return;
+            }
+            var msg = (response && response.message) ? response.message : 'Upload failed. Please try again.';
+            alert(msg);
+            resetUploadingState(form);
+            hideProgress(form);
+            fileInput.value = '';
+        });
+        xhr.addEventListener('error', function () {
+            alert('Network error during upload. Please try again.');
+            resetUploadingState(form);
+            hideProgress(form);
+            fileInput.value = '';
+        });
+        xhr.send(data);
+    }
+
+    // ---- Document LED click (view files) ----
+    var docFilesModal = document.getElementById('docFilesModal');
+    if (docFilesModal) {
+        var bsDocFilesModal = new bootstrap.Modal(docFilesModal);
+
+        function docEscapeHtml(str) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(str || ''));
+            return div.innerHTML;
+        }
+
+        document.addEventListener('click', function (e) {
+            var led = e.target.closest('[data-doc-led-clickable]');
+            if (!led) return;
+
+            var clientId    = led.getAttribute('data-client-id');
+            var clientName  = led.getAttribute('data-client-name') || '';
+
+            document.getElementById('docViewMeta').innerHTML =
+                '<strong>' + docEscapeHtml(clientName) + '</strong>';
+            document.getElementById('docViewLoading').style.display = '';
+            document.getElementById('docViewEmpty').style.display = 'none';
+            document.getElementById('docViewTableWrap').style.display = 'none';
+            document.getElementById('docViewBody').innerHTML = '';
+            bsDocFilesModal.show();
+
+            var url = window.location.href.split('?')[0]
+                + '?action=doc_files&client_id=' + encodeURIComponent(clientId);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                document.getElementById('docViewLoading').style.display = 'none';
+                var files = (xhr.response && xhr.response.files) ? xhr.response.files : [];
+                if (files.length === 0) {
+                    document.getElementById('docViewEmpty').style.display = '';
+                    return;
+                }
+                var tbody = document.getElementById('docViewBody');
+                var html = '';
+                files.forEach(function (f, i) {
+                    var dt = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')) : null;
+                    var dateStr = dt ? dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                        + ' ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
+                    html += '<tr>'
+                        + '<td>' + (i + 1) + '</td>'
+                        + '<td class="text-break">' + docEscapeHtml(f.original_filename) + '</td>'
+                        + '<td class="text-nowrap">' + dateStr + '</td>'
+                        + '<td>' + docEscapeHtml(f.uploaded_by_name) + '</td>'
+                        + '</tr>';
+                });
+                tbody.innerHTML = html;
+                document.getElementById('docViewTableWrap').style.display = '';
+            });
+            xhr.addEventListener('error', function () {
+                document.getElementById('docViewLoading').style.display = 'none';
+                document.getElementById('docViewEmpty').textContent = 'Failed to load documents.';
+                document.getElementById('docViewEmpty').style.display = '';
+            });
+            xhr.send();
+        });
+    }
+
+    // ---- Document Download Modal ----
+    var docDownloadModal = document.getElementById('docDownloadModal');
+    if (docDownloadModal) {
+        var bsDocDownloadModal = new bootstrap.Modal(docDownloadModal);
+        var _docDlClientId = '';
+
+        function docDlEscapeHtml(str) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(str || ''));
+            return div.innerHTML;
+        }
+
+        document.querySelectorAll('.doc-download-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var clientId    = this.getAttribute('data-client-id');
+                var clientName  = this.getAttribute('data-client-name') || '';
+                _docDlClientId = clientId;
+
+                document.getElementById('docDlMeta').innerHTML =
+                    '<strong>' + docDlEscapeHtml(clientName) + '</strong>';
+                document.getElementById('docDlLoading').style.display = '';
+                document.getElementById('docDlEmpty').style.display = 'none';
+                document.getElementById('docDlTableWrap').style.display = 'none';
+                document.getElementById('docDlBody').innerHTML = '';
+                document.getElementById('docDownloadSelectedBtn').disabled = true;
+                var selectAllCb = document.getElementById('docSelectAll');
+                if (selectAllCb) selectAllCb.checked = true;
+                bsDocDownloadModal.show();
+
+                var url = window.location.href.split('?')[0]
+                    + '?action=doc_files&client_id=' + encodeURIComponent(clientId);
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.responseType = 'json';
+                xhr.addEventListener('load', function () {
+                    document.getElementById('docDlLoading').style.display = 'none';
+                    var files = (xhr.response && xhr.response.files) ? xhr.response.files : [];
+                    if (files.length === 0) {
+                        document.getElementById('docDlEmpty').style.display = '';
+                        return;
+                    }
+                    var tbody = document.getElementById('docDlBody');
+                    var html = '';
+                    files.forEach(function (f, i) {
+                        var dt = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')) : null;
+                        var dateStr = dt ? dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                            + ' ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
+                        html += '<tr>'
+                            + '<td class="text-center"><input type="checkbox" class="doc-dl-check" value="' + f.id + '" checked></td>'
+                            + '<td>' + (i + 1) + '</td>'
+                            + '<td class="text-break">' + docDlEscapeHtml(f.original_filename) + '</td>'
+                            + '<td class="text-nowrap">' + dateStr + '</td>'
+                            + '<td>' + docDlEscapeHtml(f.uploaded_by_name) + '</td>'
+                            + '</tr>';
+                    });
+                    tbody.innerHTML = html;
+                    document.getElementById('docDlTableWrap').style.display = '';
+                    document.getElementById('docDownloadSelectedBtn').disabled = false;
+                    syncDocSelectAll();
+                });
+                xhr.addEventListener('error', function () {
+                    document.getElementById('docDlLoading').style.display = 'none';
+                    document.getElementById('docDlEmpty').textContent = 'Failed to load documents.';
+                    document.getElementById('docDlEmpty').style.display = '';
+                });
+                xhr.send();
+            });
+        });
+
+        // Select All checkbox
+        var docSelectAll = document.getElementById('docSelectAll');
+        if (docSelectAll) {
+            docSelectAll.addEventListener('change', function () {
+                var checks = document.querySelectorAll('.doc-dl-check');
+                checks.forEach(function (c) { c.checked = docSelectAll.checked; });
+                syncDocDlBtn();
+            });
+        }
+
+        document.getElementById('docDlBody').addEventListener('change', function () {
+            syncDocSelectAll();
+            syncDocDlBtn();
+        });
+
+        function syncDocSelectAll() {
+            var all = document.querySelectorAll('.doc-dl-check');
+            var checked = document.querySelectorAll('.doc-dl-check:checked');
+            var sa = document.getElementById('docSelectAll');
+            if (sa) {
+                sa.checked = all.length > 0 && checked.length === all.length;
+                sa.indeterminate = checked.length > 0 && checked.length < all.length;
+            }
+            syncDocDlBtn();
+        }
+
+        function syncDocDlBtn() {
+            var any = document.querySelectorAll('.doc-dl-check:checked').length > 0;
+            document.getElementById('docDownloadSelectedBtn').disabled = !any;
+        }
+
+        // Download selected
+        document.getElementById('docDownloadSelectedBtn').addEventListener('click', function () {
+            var checked = document.querySelectorAll('.doc-dl-check:checked');
+            if (checked.length === 0) return;
+
+            var fileIds = [];
+            checked.forEach(function (c) { fileIds.push(c.value); });
+
+            var btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Preparing...';
+
+            var formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+            formData.append('client_id', _docDlClientId);
+            fileIds.forEach(function (id) { formData.append('file_ids[]', id); });
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', window.location.href.split('?')[0] + '?action=doc_download', true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                if (xhr.status >= 200 && xhr.status < 300 && xhr.response && xhr.response.success) {
+                    window.location.href = window.location.href.split('?')[0]
+                        + '?action=doc_download_stream&token=' + encodeURIComponent(xhr.response.token);
+                    setTimeout(function () {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-download"></i> Download Selected';
+                    }, 2000);
+                } else {
+                    var msg = (xhr.response && xhr.response.message) ? xhr.response.message : 'Download failed.';
+                    alert(msg);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-download"></i> Download Selected';
+                }
+            });
+            xhr.addEventListener('error', function () {
+                alert('Network error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-download"></i> Download Selected';
+            });
+            xhr.send(formData);
+        });
+    }
 });

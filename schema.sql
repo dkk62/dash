@@ -239,3 +239,20 @@ CREATE TABLE IF NOT EXISTS `settings` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_setting_key` (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- Table: client_documents (independent document uploads per client)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `client_documents` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `client_id` INT(11) NOT NULL,
+  `file_path` VARCHAR(500) NOT NULL,
+  `original_filename` VARCHAR(255) NOT NULL,
+  `uploaded_by` INT(11) NOT NULL,
+  `uploaded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_cd_client` (`client_id`),
+  KEY `idx_cd_uploaded_by` (`uploaded_by`),
+  CONSTRAINT `cd_ibfk_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `cd_ibfk_user` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

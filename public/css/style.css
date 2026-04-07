@@ -53,6 +53,20 @@
     border-radius: 0;
 }
 
+.doc-table .led-grey::after {
+    content: "NO DOCUMENTS";
+    font-size: 7pt;
+}
+
+.doc-table .led-green::after {
+    content: "VIEW FILES";
+    font-size: 7pt;
+}
+
+.doc-table .stage-actions {
+    gap: 35px;
+}
+
 .led-orange {
     background-color: #FF6B00;
     border-color: #FF8C00;
