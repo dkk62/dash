@@ -292,6 +292,14 @@ document.addEventListener('DOMContentLoaded', function () {
         var bsStageFilesModal = new bootstrap.Modal(stageFilesModal);
         var stageLabelsFiles = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3', stage4: 'Stage 4' };
 
+        // Extensions that can be previewed in the browser
+        var previewableExts = ['pdf','jpg','jpeg','png','gif','webp','svg','bmp','txt','csv','log','xml','json','htm','html','xlsx','xls'];
+
+        function isPreviewable(filename) {
+            var ext = (filename || '').split('.').pop().toLowerCase();
+            return previewableExts.indexOf(ext) !== -1;
+        }
+
         function formatFileSize(bytes) {
             if (!bytes || bytes === 0) return '0 B';
             var units = ['B', 'KB', 'MB', 'GB'];
@@ -349,11 +357,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 var html = '';
                 files.forEach(function (f, i) {
                     var uploadDate = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '-';
+                    var viewBtn = '';
+                    if (isPreviewable(f.original_filename) && f.file_id) {
+                        var previewUrl = window.location.href.split('?')[0] + '?action=preview_file&file_id=' + encodeURIComponent(f.file_id);
+                        viewBtn = '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + escapeHtml(previewUrl) + '" data-preview-name="' + escapeHtml(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                    }
                     html += '<tr>'
                         + '<td>' + (i + 1) + '</td>'
                         + '<td class="text-break">' + escapeHtml(f.original_filename) + '</td>'
                         + '<td class="text-nowrap">' + uploadDate + '</td>'
                         + '<td>' + escapeHtml(f.uploaded_by_name) + '</td>'
+                        + '<td class="text-center">' + viewBtn + '</td>'
                         + '</tr>';
                 });
                 tbody.innerHTML = html;
@@ -371,6 +385,139 @@ document.addEventListener('DOMContentLoaded', function () {
             var div = document.createElement('div');
             div.appendChild(document.createTextNode(str || ''));
             return div.innerHTML;
+        }
+
+        // ---- File Preview Modal ----
+        var previewModal = document.getElementById('filePreviewModal');
+        if (previewModal) {
+            var bsPreviewModal = new bootstrap.Modal(previewModal);
+            var previewTitle = document.getElementById('filePreviewTitle');
+            var previewBody = document.getElementById('filePreviewBody');
+            var previewLoading = document.getElementById('filePreviewLoading');
+
+            // Click handler for view buttons inside stage files table
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-preview-url]');
+                if (!btn) return;
+                e.preventDefault();
+
+                var url = btn.getAttribute('data-preview-url');
+                var name = btn.getAttribute('data-preview-name');
+                var ext = (name || '').split('.').pop().toLowerCase();
+
+                previewTitle.textContent = name;
+                previewBody.innerHTML = '';
+                previewLoading.style.display = '';
+
+                bsPreviewModal.show();
+
+                if (ext === 'pdf') {
+                    var iframe = document.createElement('iframe');
+                    iframe.src = url;
+                    iframe.style.cssText = 'width:100%;flex:1;border:none;';
+                    iframe.onload = function () { previewLoading.style.display = 'none'; };
+                    previewBody.appendChild(iframe);
+                } else if (['jpg','jpeg','png','gif','webp','svg','bmp'].indexOf(ext) !== -1) {
+                    var img = document.createElement('img');
+                    img.src = url;
+                    img.alt = name;
+                    img.style.cssText = 'max-width:100%;max-height:calc(100vh - 70px);display:block;margin:0 auto;object-fit:contain;';
+                    img.onload = function () { previewLoading.style.display = 'none'; };
+                    img.onerror = function () {
+                        previewLoading.style.display = 'none';
+                        previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to load image.</div>';
+                    };
+                    previewBody.appendChild(img);
+                } else if (['xlsx','xls'].indexOf(ext) !== -1) {
+                    // Excel files via SheetJS
+                    var xhr3 = new XMLHttpRequest();
+                    xhr3.open('GET', url, true);
+                    xhr3.responseType = 'arraybuffer';
+                    xhr3.onload = function () {
+                        previewLoading.style.display = 'none';
+                        if (xhr3.status >= 200 && xhr3.status < 300) {
+                            try {
+                                var data = new Uint8Array(xhr3.response);
+                                var workbook = XLSX.read(data, { type: 'array' });
+                                var container = document.createElement('div');
+                                container.style.cssText = 'flex:1;overflow:auto;';
+                                // Render tabs if multiple sheets
+                                if (workbook.SheetNames.length > 1) {
+                                    var tabs = document.createElement('ul');
+                                    tabs.className = 'nav nav-tabs mb-2';
+                                    tabs.style.fontSize = '0.8rem';
+                                    workbook.SheetNames.forEach(function (sn, si) {
+                                        var li = document.createElement('li');
+                                        li.className = 'nav-item';
+                                        var a = document.createElement('a');
+                                        a.className = 'nav-link py-1 px-2' + (si === 0 ? ' active' : '');
+                                        a.href = '#';
+                                        a.textContent = sn;
+                                        a.setAttribute('data-sheet-index', si);
+                                        a.addEventListener('click', function (ev) {
+                                            ev.preventDefault();
+                                            tabs.querySelectorAll('.nav-link').forEach(function (t) { t.classList.remove('active'); });
+                                            this.classList.add('active');
+                                            var idx = parseInt(this.getAttribute('data-sheet-index'));
+                                            var sheets = container.querySelectorAll('.xlsx-sheet');
+                                            sheets.forEach(function (s, j) { s.style.display = j === idx ? '' : 'none'; });
+                                        });
+                                        li.appendChild(a);
+                                        tabs.appendChild(li);
+                                    });
+                                    container.appendChild(tabs);
+                                }
+                                workbook.SheetNames.forEach(function (sn, si) {
+                                    var sheet = workbook.Sheets[sn];
+                                    var htmlStr = XLSX.utils.sheet_to_html(sheet, { editable: false });
+                                    var wrap = document.createElement('div');
+                                    wrap.className = 'xlsx-sheet';
+                                    wrap.style.display = si === 0 ? '' : 'none';
+                                    wrap.innerHTML = htmlStr;
+                                    var tbl = wrap.querySelector('table');
+                                    if (tbl) {
+                                        tbl.className = 'table table-sm table-bordered mb-0';
+                                        tbl.style.fontSize = '0.8rem';
+                                    }
+                                    container.appendChild(wrap);
+                                });
+                                previewBody.appendChild(container);
+                            } catch (err) {
+                                previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to parse Excel file.</div>';
+                            }
+                        } else {
+                            previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to load file.</div>';
+                        }
+                    };
+                    xhr3.onerror = function () {
+                        previewLoading.style.display = 'none';
+                        previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to load file.</div>';
+                    };
+                    xhr3.send();
+                } else {
+                    // Text-based files
+                    var xhr2 = new XMLHttpRequest();
+                    xhr2.open('GET', url, true);
+                    xhr2.responseType = 'text';
+                    xhr2.onload = function () {
+                        previewLoading.style.display = 'none';
+                        if (xhr2.status >= 200 && xhr2.status < 300) {
+                            var pre = document.createElement('pre');
+                            pre.style.cssText = 'flex:1;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:0.85rem;margin:0;';
+                            pre.textContent = xhr2.responseText;
+                            previewBody.appendChild(pre);
+                        } else {
+                            previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to load file.</div>';
+                        }
+                    };
+                    xhr2.onerror = function () {
+                        previewLoading.style.display = 'none';
+                        previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to load file.</div>';
+                    };
+                    xhr2.send();
+                }
+            });
+
         }
     }
 

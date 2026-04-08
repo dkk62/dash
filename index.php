@@ -111,6 +111,9 @@ switch ($action) {
     case 'stage_files':
         require_once BASE_PATH . '/controllers/StageController.php';
         break;
+    case 'preview_file':
+        require_once BASE_PATH . '/controllers/StageController.php';
+        break;
 
     // Reminder
     case 'reminder_bulk':

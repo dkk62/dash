@@ -74,7 +74,7 @@ class FileRecord {
         $db = getDB();
         if ($stage === 'stage1' && $accountId !== null) {
             $stmt = $db->prepare(
-                "SELECT f.original_filename, f.file_path, f.uploaded_at, u.name AS uploaded_by_name
+                "SELECT f.id AS file_id, f.original_filename, f.file_path, f.uploaded_at, u.name AS uploaded_by_name
                  FROM files f
                  JOIN users u ON u.id = f.uploaded_by
                  WHERE f.period_id=? AND f.stage_name=? AND f.account_id=?
@@ -83,7 +83,7 @@ class FileRecord {
             $stmt->execute([$periodId, $stage, $accountId]);
         } else {
             $stmt = $db->prepare(
-                "SELECT f.original_filename, f.file_path, f.uploaded_at, u.name AS uploaded_by_name
+                "SELECT f.id AS file_id, f.original_filename, f.file_path, f.uploaded_at, u.name AS uploaded_by_name
                  FROM files f
                  JOIN users u ON u.id = f.uploaded_by
                  WHERE f.period_id=? AND f.stage_name=? AND f.account_id IS NULL
@@ -96,6 +96,13 @@ class FileRecord {
             unset($row['file_path']);
         }
         return $rows;
+    }
+
+    public static function findById(int $id): ?array {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM files WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch() ?: null;
     }
 
     public static function getFirst(int $periodId, string $stage, ?int $accountId = null): ?array {

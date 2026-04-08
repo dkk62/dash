@@ -436,6 +436,80 @@ if ($action === 'mark_downloaded' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+// ---- PREVIEW FILE (inline view in browser) ----
+if ($action === 'preview_file') {
+    $fileId = (int) ($_GET['file_id'] ?? 0);
+    if ($fileId <= 0) {
+        http_response_code(400);
+        echo 'Invalid file ID.';
+        exit;
+    }
+
+    $fileRecord = FileRecord::findById($fileId);
+    if (!$fileRecord) {
+        http_response_code(404);
+        echo 'File not found.';
+        exit;
+    }
+
+    $stage = $fileRecord['stage_name'];
+    $periodId = (int) $fileRecord['period_id'];
+
+    // Client ownership check
+    if (currentRole() === 'client') {
+        $period = Period::find($periodId);
+        $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+        if (!$period || !in_array((int) $period['client_id'], $allowedClientIds, true)) {
+            http_response_code(403);
+            echo 'This period does not belong to your account.';
+            exit;
+        }
+    }
+
+    $fullPath = UPLOAD_PATH . '/' . $fileRecord['file_path'];
+    if (!file_exists($fullPath) || !is_file($fullPath)) {
+        http_response_code(404);
+        echo 'File not found on disk.';
+        exit;
+    }
+
+    // Only allow previewable MIME types
+    $ext = strtolower(pathinfo($fileRecord['original_filename'], PATHINFO_EXTENSION));
+    $previewableMimes = [
+        'pdf'  => 'application/pdf',
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'webp' => 'image/webp',
+        'svg'  => 'image/svg+xml',
+        'bmp'  => 'image/bmp',
+        'txt'  => 'text/plain',
+        'csv'  => 'text/plain',
+        'log'  => 'text/plain',
+        'xml'  => 'text/xml',
+        'json' => 'application/json',
+        'htm'  => 'text/html',
+        'html' => 'text/html',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls'  => 'application/vnd.ms-excel',
+    ];
+
+    if (!isset($previewableMimes[$ext])) {
+        http_response_code(415);
+        echo 'This file type cannot be previewed.';
+        exit;
+    }
+
+    $mime = $previewableMimes[$ext];
+    header('Content-Type: ' . $mime);
+    header('Content-Disposition: inline; filename="' . basename($fileRecord['original_filename']) . '"');
+    header('Content-Length: ' . filesize($fullPath));
+    header('X-Content-Type-Options: nosniff');
+    readfile($fullPath);
+    exit;
+}
+
 // ---- CHECK EXISTING FILES (pre-upload confirmation) ----
 if ($action === 'stage_files') {
     header('Content-Type: application/json');
