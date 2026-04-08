@@ -262,6 +262,36 @@ For accounts in **automatic** bank feed mode, Stage 1 starts as **orange** inste
 - **Multiple files:** a ZIP archive is created and downloaded. The ZIP filename includes the client name, stage, and period.
 - On download, the LED changes from green to orange.
 
+### Viewing uploaded files
+
+Click any **green** or **orange** stage LED to open a popup showing all files uploaded for that stage. Each file entry shows:
+
+- File name
+- Upload date
+- Who uploaded it
+- A **View** button (eye icon) — if the file type supports in-browser preview
+
+### File preview
+
+Clicking the **View** button opens a **fullscreen preview** of the file without downloading it.
+
+**Supported file types for preview:**
+
+| Type | Extensions |
+|---|---|
+| PDF | `.pdf` |
+| Images | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.svg`, `.bmp` |
+| Text | `.txt`, `.csv`, `.log` |
+| Markup / Data | `.xml`, `.json`, `.htm`, `.html` |
+| Excel | `.xlsx`, `.xls` |
+
+- **PDF files** are displayed inline in the browser.
+- **Images** are displayed centred and scaled to fit the screen.
+- **Text files** are shown in a scrollable text area.
+- **Excel files** are rendered as HTML tables. If the file has multiple sheets, tabs appear at the top to switch between them.
+- **All other file types** (e.g. `.doc`, `.docx`, `.ppt`, `.zip`) do not show a View button and can only be downloaded.
+- Preview is available to **all logged-in users**. Clients can only preview files on their own periods.
+
 ### Re-upload behaviour
 
 Re-uploading to a stage clears all downstream stages:
@@ -281,6 +311,61 @@ Click the **Export .xlsx** button at the top of the dashboard. This downloads a 
 - Client, Period, Account, Stage 1–4 status, and Lock status columns
 - Stage status cells use coloured dot symbols (●) matching the LED colours (grey, green, orange, red)
 - Locked periods show a 🔒 symbol
+
+---
+
+## Documents
+
+The Documents screen is a separate file storage area for each client. Use it for general documents (e.g. engagement letters, tax returns, reference files) that are not tied to a specific period or stage.
+
+### Accessing the Documents page
+
+Click **Documents** in the sidebar. The page shows one row per client.
+
+### Who sees what
+
+| Role | Visible clients |
+|---|---|
+| Admin | All clients |
+| Processor 0 / Processor 1 | Only clients assigned to them |
+| Client | Only their own client(s) |
+
+### Status LED
+
+- **Green LED** — documents exist. Click the LED to view the file list.
+- **Grey LED** — no documents uploaded yet.
+
+### Uploading documents
+
+1. Click the **upload icon** (cloud up) next to the client name.
+2. A confirmation prompt appears. Click OK.
+3. Select one or more files from your computer.
+4. A progress bar shows the upload percentage.
+5. On success, the page refreshes and the LED turns green.
+
+**Notes:**
+- Multiple files can be uploaded at once.
+- If a file with the same name already exists, the new file is automatically renamed (e.g. `report_1.pdf`).
+- File size is limited by the server settings.
+
+### Viewing uploaded documents
+
+Click the **green LED** to open a popup listing all documents for that client. The list shows:
+
+| Column | Description |
+|---|---|
+| # | Row number |
+| File Name | Original filename |
+| Uploaded | Date and time of upload |
+| By | Name of the user who uploaded the file |
+
+### Downloading documents
+
+1. Click the **download icon** (cloud down) next to the client name.
+2. A popup shows all documents with checkboxes. All files are selected by default.
+3. Use the **Select All** checkbox or select individual files.
+4. Click **Download Selected**.
+5. **Single file** — downloads directly. **Multiple files** — downloads as a ZIP archive.
 
 ---
 

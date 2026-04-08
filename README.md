@@ -16,6 +16,7 @@ This project is designed for XAMPP-style hosting at `/dash` and stores uploaded 
 - First Login and Bootstrapping Users
 - How to Use (By Role)
 - Stage/Status Rules
+- Documents
 - Logs and Auditing
 - File Storage Layout
 - Security Features
@@ -285,6 +286,65 @@ Then set/reset password using:
 - Multiple files: zipped download (`ZipArchive` required).
 - If stage was `green`, successful download sets it to `orange`.
 
+### File list and preview
+
+- Clicking a **green** or **orange** stage LED opens a popup listing all uploaded files for that stage.
+- Each file row shows the filename, upload date, uploader name, and a **View** button for previewable file types.
+- Clicking the View button opens a **fullscreen preview modal** without downloading the file.
+- Supported preview formats:
+  - **PDF** — rendered inline via iframe
+  - **Images** — `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.svg`, `.bmp`
+  - **Text** — `.txt`, `.csv`, `.log`
+  - **Markup/Data** — `.xml`, `.json`, `.htm`, `.html`
+  - **Excel** — `.xlsx`, `.xls` (rendered as HTML tables using SheetJS; multi-sheet files show tabs)
+- Non-previewable files (e.g. `.doc`, `.docx`, `.ppt`, `.zip`) do not show a View button.
+- Preview is read-only and available to all logged-in roles. Clients can only preview files belonging to their own periods.
+
+## Documents
+
+The Documents screen is a **separate, client-level file storage system** independent of stage uploads. It allows uploading and downloading general documents (e.g. engagement letters, tax returns) associated with a client without tying them to a specific period or stage.
+
+### Access
+
+- Accessible from the sidebar (all logged-in users).
+- Admins see all clients. Processors see only their assigned clients. Clients see only their own.
+
+### UI
+
+- One row per client showing the client name, a status LED, upload icon, and download icon.
+- **Green LED**: documents exist (clickable to view the file list).
+- **Grey LED**: no documents uploaded.
+
+### Upload
+
+- Click the upload icon for a client.
+- Supports multiple files in a single upload with a real-time progress bar.
+- Duplicate filenames are auto-renamed (e.g. `file_1.txt`, `file_2.txt`).
+- Files are stored at `uploads/clients/{clientId}/documents/`.
+- Metadata (original filename, uploader, timestamp) is stored in the `client_documents` table.
+
+### View
+
+- Click the green LED to open a popup listing all documents for that client.
+- Columns: file name, upload date/time, and uploader name.
+
+### Download
+
+- Click the download icon to open a selection modal.
+- Select individual files or use "Select All".
+- Single file: direct download. Multiple files: zipped download.
+- Downloads use secure, time-limited tokens (2-minute expiry, single use).
+
+### Routes
+
+- `?action=documents` — documents page
+- `POST ?action=doc_upload` — upload files
+- `?action=doc_files` — list files (AJAX)
+- `POST ?action=doc_download` — request download token
+- `?action=doc_download_stream` — stream download
+
+All handled by `controllers/DocumentController.php`.
+
 ### Downstream reset behavior
 
 On upload, downstream stages are reset:
@@ -319,8 +379,9 @@ Structure:
 - Stage 2: `stage2/`
 - Stage 3: `stage3/`
 - Stage 4: `stage4/`
+- Client documents: `documents/`
 
-Database file records are stored in `files` table with original filename + relative path.
+Database file records are stored in `files` table (stage files) and `client_documents` table (documents) with original filename + relative path.
 
 ## Security Features
 
