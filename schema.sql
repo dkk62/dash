@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS `clients` (
   `cycle_type` ENUM('monthly','yearly') NOT NULL DEFAULT 'monthly',
   `processor0_id` INT(11) DEFAULT NULL,
   `processor1_id` INT(11) DEFAULT NULL,
+  `is_archived` TINYINT(1) NOT NULL DEFAULT 0,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

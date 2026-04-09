@@ -12,6 +12,9 @@ $role = currentRole();
 $periods = Period::allWithClient();
 sortPeriodsChronologically($periods);
 
+// Exclude archived clients from pending list
+$periods = array_values(array_filter($periods, fn($p) => !(int)($p['client_is_archived'] ?? 0)));
+
 // Filter to only past periods (exclude current and future months)
 $periods = array_values(array_filter($periods, fn($p) => isPeriodBeforeCurrentPeriod($p['period_label'])));
 

@@ -16,11 +16,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 var title   = form.getAttribute('data-confirm-title') || 'Confirm Deletion';
                 var message = form.getAttribute('data-confirm-message') || 'Are you sure you want to delete this item?';
                 var warning = form.getAttribute('data-confirm-warning') || 'This action cannot be undone.';
+                var btnText = form.getAttribute('data-confirm-button') || '<i class="bi bi-trash me-1"></i>Delete';
 
                 document.getElementById('confirmDeleteLabel').innerHTML =
                     '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + title;
                 document.getElementById('confirmDeleteMessage').innerHTML = message;
                 document.getElementById('confirmDeleteWarning').textContent = warning;
+                confirmBtn.innerHTML = btnText;
                 bsConfirmModal.show();
             });
         });

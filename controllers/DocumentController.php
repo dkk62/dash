@@ -4,7 +4,7 @@ require_once BASE_PATH . '/models/ClientDocument.php';
 
 // ---- DOCUMENTS LISTING PAGE ----
 if ($action === 'documents') {
-    $clients = Client::all();
+    $clients = Client::allActive();
 
     // Filter by role
     if (currentRole() === 'client') {

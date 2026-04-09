@@ -76,7 +76,7 @@ class Period {
 
     public static function allWithClient(): array {
         $db = getDB();
-        return $db->query("SELECT p.*, c.name AS client_name, c.email AS client_email, c.id AS client_id 
+        return $db->query("SELECT p.*, c.name AS client_name, c.email AS client_email, c.id AS client_id, c.is_archived AS client_is_archived 
                            FROM periods p 
                            JOIN clients c ON c.id = p.client_id 
                            ORDER BY LOWER(c.name), p.created_at DESC")->fetchAll();

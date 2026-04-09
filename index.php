@@ -74,6 +74,7 @@ switch ($action) {
     case 'client_save':
     case 'client_edit':
     case 'client_delete':
+    case 'client_archive':
         requireClientPermission();
         require_once BASE_PATH . '/controllers/ClientController.php';
         break;

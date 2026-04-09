@@ -39,6 +39,18 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('?action=clients');
 }
 
+if ($action === 'client_archive' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
+    requireRole(['admin']);
+    $id = (int) ($_POST['id'] ?? 0);
+    $archive = (int) ($_POST['archive'] ?? 1);
+    if ($id > 0) {
+        Client::setArchived($id, (bool) $archive);
+        setFlash('success', $archive ? 'Client archived.' : 'Client unarchived.');
+    }
+    redirect('?action=clients');
+}
+
 if ($action === 'client_delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrf();
     $id = (int) ($_POST['id'] ?? 0);

@@ -218,6 +218,9 @@ function exportDashboardXlsx(array $dashboardData): void {
 $periods = Period::allWithClient();
 sortPeriodsChronologically($periods);
 
+// Exclude archived clients from dashboard
+$periods = array_values(array_filter($periods, fn($p) => !(int)($p['client_is_archived'] ?? 0)));
+
 // Filter periods if user is a client
 if (currentRole() === 'client') {
     $clientIds = !empty($_SESSION['client_ids'])

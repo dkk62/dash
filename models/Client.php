@@ -94,6 +94,26 @@ class Client {
         }
     }
 
+    public static function allActive(): array {
+        $db = getDB();
+        return $db->query("
+            SELECT c.*,
+                   u0.name AS processor0_name,
+                   u1.name AS processor1_name
+            FROM clients c
+            LEFT JOIN users u0 ON u0.id = c.processor0_id
+            LEFT JOIN users u1 ON u1.id = c.processor1_id
+            WHERE c.is_archived = 0
+            ORDER BY c.name
+        ")->fetchAll();
+    }
+
+    public static function setArchived(int $id, bool $archived): void {
+        $db = getDB();
+        $stmt = $db->prepare("UPDATE clients SET is_archived = ? WHERE id = ?");
+        $stmt->execute([$archived ? 1 : 0, $id]);
+    }
+
     public static function getClientIdsForUser(int $userId): array {
         $db = getDB();
         $stmt = $db->prepare("SELECT id FROM clients WHERE processor0_id = ? OR processor1_id = ?");
