@@ -311,3 +311,77 @@ if ($action === 'doc_download_stream') {
     @unlink($zipPath);
     exit;
 }
+
+// ---- PREVIEW DOCUMENT FILE (inline view in browser) ----
+if ($action === 'doc_preview') {
+    $docId = (int) ($_GET['doc_id'] ?? 0);
+    if ($docId <= 0) {
+        http_response_code(400);
+        echo 'Invalid document ID.';
+        exit;
+    }
+
+    $docRecord = ClientDocument::findById($docId);
+    if (!$docRecord) {
+        http_response_code(404);
+        echo 'Document not found.';
+        exit;
+    }
+
+    $clientId = (int) $docRecord['client_id'];
+
+    // Client ownership check
+    if (currentRole() === 'client') {
+        $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+        if (!in_array($clientId, $allowedClientIds, true)) {
+            http_response_code(403);
+            echo 'This document does not belong to your account.';
+            exit;
+        }
+    }
+
+    $fullPath = UPLOAD_PATH . '/' . $docRecord['file_path'];
+    if (!file_exists($fullPath) || !is_file($fullPath)) {
+        http_response_code(404);
+        echo 'File not found on disk.';
+        exit;
+    }
+
+    $ext = strtolower(pathinfo($docRecord['original_filename'], PATHINFO_EXTENSION));
+    $previewableMimes = [
+        'pdf'  => 'application/pdf',
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'webp' => 'image/webp',
+        'svg'  => 'image/svg+xml',
+        'bmp'  => 'image/bmp',
+        'txt'  => 'text/plain',
+        'csv'  => 'text/plain',
+        'log'  => 'text/plain',
+        'xml'  => 'text/xml',
+        'json' => 'application/json',
+        'htm'  => 'text/html',
+        'html' => 'text/html',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls'  => 'application/vnd.ms-excel',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc'  => 'application/msword',
+        'rtf'  => 'application/rtf',
+    ];
+
+    if (!isset($previewableMimes[$ext])) {
+        http_response_code(415);
+        echo 'This file type cannot be previewed.';
+        exit;
+    }
+
+    $mime = $previewableMimes[$ext];
+    header('Content-Type: ' . $mime);
+    header('Content-Disposition: inline; filename="' . basename($docRecord['original_filename']) . '"');
+    header('Content-Length: ' . filesize($fullPath));
+    header('X-Content-Type-Options: nosniff');
+    readfile($fullPath);
+    exit;
+}

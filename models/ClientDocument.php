@@ -53,6 +53,14 @@ class ClientDocument {
         return (int)$db->lastInsertId();
     }
 
+    public static function findById(int $id): ?array {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM client_documents WHERE id = ?");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public static function findByIds(array $ids): array {
         if (empty($ids)) return [];
         $db = getDB();

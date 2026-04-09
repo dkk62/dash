@@ -104,6 +104,7 @@ ob_start();
                 <th>File Name</th>
                 <th>Uploaded</th>
                 <th>By</th>
+                <th class="text-center">View</th>
               </tr>
             </thead>
             <tbody id="docViewBody"></tbody>
@@ -152,6 +153,25 @@ ob_start();
         <button type="button" class="btn btn-warning btn-sm" id="docDownloadSelectedBtn" disabled>
           <i class="bi bi-download"></i> Download Selected
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- File Preview Modal -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-labelledby="filePreviewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0 text-truncate" id="filePreviewModalLabel"><i class="bi bi-file-earmark-text"></i> <span id="filePreviewTitle"></span></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-2 d-flex flex-column">
+        <div id="filePreviewLoading" class="text-center py-4">
+          <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+          <span class="ms-2 text-muted small">Loading preview...</span>
+        </div>
+        <div id="filePreviewBody"></div>
       </div>
     </div>
   </div>

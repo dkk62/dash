@@ -153,6 +153,7 @@ switch ($action) {
     case 'doc_files':
     case 'doc_download':
     case 'doc_download_stream':
+    case 'doc_preview':
         require_once BASE_PATH . '/controllers/DocumentController.php';
         break;
 

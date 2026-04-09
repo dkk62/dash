@@ -493,6 +493,9 @@ if ($action === 'preview_file') {
         'html' => 'text/html',
         'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'xls'  => 'application/vnd.ms-excel',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc'  => 'application/msword',
+        'rtf'  => 'application/rtf',
     ];
 
     if (!isset($previewableMimes[$ext])) {

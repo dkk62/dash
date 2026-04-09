@@ -286,19 +286,27 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Extensions that can be previewed in the browser
+    var previewableExts = ['pdf','jpg','jpeg','png','gif','webp','svg','bmp','txt','csv','log','xml','json','htm','html','xlsx','xls','docx','doc','rtf'];
+
+    // Extensions that can only be downloaded (no in-browser preview)
+    var downloadOnlyExts = ['doc','rtf'];
+
+    function isDownloadOnly(filename) {
+        var ext = (filename || '').split('.').pop().toLowerCase();
+        return downloadOnlyExts.indexOf(ext) !== -1;
+    }
+
+    function isPreviewable(filename) {
+        var ext = (filename || '').split('.').pop().toLowerCase();
+        return previewableExts.indexOf(ext) !== -1;
+    }
+
     // ---- Stage Files Modal (LED click) ----
     var stageFilesModal = document.getElementById('stageFilesModal');
     if (stageFilesModal) {
         var bsStageFilesModal = new bootstrap.Modal(stageFilesModal);
         var stageLabelsFiles = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3', stage4: 'Stage 4' };
-
-        // Extensions that can be previewed in the browser
-        var previewableExts = ['pdf','jpg','jpeg','png','gif','webp','svg','bmp','txt','csv','log','xml','json','htm','html','xlsx','xls'];
-
-        function isPreviewable(filename) {
-            var ext = (filename || '').split('.').pop().toLowerCase();
-            return previewableExts.indexOf(ext) !== -1;
-        }
 
         function formatFileSize(bytes) {
             if (!bytes || bytes === 0) return '0 B';
@@ -360,7 +368,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     var viewBtn = '';
                     if (isPreviewable(f.original_filename) && f.file_id) {
                         var previewUrl = window.location.href.split('?')[0] + '?action=preview_file&file_id=' + encodeURIComponent(f.file_id);
-                        viewBtn = '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + escapeHtml(previewUrl) + '" data-preview-name="' + escapeHtml(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                        if (isDownloadOnly(f.original_filename)) {
+                            viewBtn = '<a href="' + escapeHtml(previewUrl) + '" download class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem;" title="Download"><i class="bi bi-download"></i></a>';
+                        } else {
+                            viewBtn = '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + escapeHtml(previewUrl) + '" data-preview-name="' + escapeHtml(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                        }
                     }
                     html += '<tr>'
                         + '<td>' + (i + 1) + '</td>'
@@ -386,10 +398,11 @@ document.addEventListener('DOMContentLoaded', function () {
             div.appendChild(document.createTextNode(str || ''));
             return div.innerHTML;
         }
+    }
 
-        // ---- File Preview Modal ----
-        var previewModal = document.getElementById('filePreviewModal');
-        if (previewModal) {
+    // ---- File Preview Modal ----
+    var previewModal = document.getElementById('filePreviewModal');
+    if (previewModal) {
             var bsPreviewModal = new bootstrap.Modal(previewModal);
             var previewTitle = document.getElementById('filePreviewTitle');
             var previewBody = document.getElementById('filePreviewBody');
@@ -428,6 +441,42 @@ document.addEventListener('DOMContentLoaded', function () {
                         previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to load image.</div>';
                     };
                     previewBody.appendChild(img);
+                } else if (['docx'].indexOf(ext) !== -1) {
+                    // Word DOCX files via Mammoth.js
+                    var xhr4 = new XMLHttpRequest();
+                    xhr4.open('GET', url, true);
+                    xhr4.responseType = 'arraybuffer';
+                    xhr4.onload = function () {
+                        previewLoading.style.display = 'none';
+                        if (xhr4.status >= 200 && xhr4.status < 300) {
+                            mammoth.convertToHtml({ arrayBuffer: xhr4.response })
+                                .then(function (result) {
+                                    var container = document.createElement('div');
+                                    container.style.cssText = 'flex:1;overflow:auto;padding:1rem;font-size:0.9rem;line-height:1.6;';
+                                    container.innerHTML = result.value;
+                                    // Style images inside the rendered HTML
+                                    container.querySelectorAll('img').forEach(function (img) {
+                                        img.style.maxWidth = '100%';
+                                        img.style.height = 'auto';
+                                    });
+                                    // Style tables inside the rendered HTML
+                                    container.querySelectorAll('table').forEach(function (tbl) {
+                                        tbl.className = 'table table-sm table-bordered';
+                                    });
+                                    previewBody.appendChild(container);
+                                })
+                                .catch(function () {
+                                    previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to parse Word document.</div>';
+                                });
+                        } else {
+                            previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to load file.</div>';
+                        }
+                    };
+                    xhr4.onerror = function () {
+                        previewLoading.style.display = 'none';
+                        previewBody.innerHTML = '<div class="text-danger text-center py-3">Failed to load file.</div>';
+                    };
+                    xhr4.send();
                 } else if (['xlsx','xls'].indexOf(ext) !== -1) {
                     // Excel files via SheetJS
                     var xhr3 = new XMLHttpRequest();
@@ -518,7 +567,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-        }
     }
 
     // ---- Stage Note Modal (Chat) ----
@@ -767,11 +815,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     var dt = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')) : null;
                     var dateStr = dt ? dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
                         + ' ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
+                    var viewBtn = '';
+                    if (isPreviewable(f.original_filename) && f.id) {
+                        var previewUrl = window.location.href.split('?')[0] + '?action=doc_preview&doc_id=' + encodeURIComponent(f.id);
+                        if (isDownloadOnly(f.original_filename)) {
+                            viewBtn = '<a href="' + docEscapeHtml(previewUrl) + '" download class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem;" title="Download"><i class="bi bi-download"></i></a>';
+                        } else {
+                            viewBtn = '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + docEscapeHtml(previewUrl) + '" data-preview-name="' + docEscapeHtml(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                        }
+                    }
                     html += '<tr>'
                         + '<td>' + (i + 1) + '</td>'
                         + '<td class="text-break">' + docEscapeHtml(f.original_filename) + '</td>'
                         + '<td class="text-nowrap">' + dateStr + '</td>'
                         + '<td>' + docEscapeHtml(f.uploaded_by_name) + '</td>'
+                        + '<td class="text-center">' + viewBtn + '</td>'
                         + '</tr>';
                 });
                 tbody.innerHTML = html;
