@@ -46,6 +46,7 @@ switch ($action) {
     case 'reset_password':
     case 'do_reset_password':
         require_once BASE_PATH . '/models/User.php';
+        require_once BASE_PATH . '/models/Client.php';
         require_once BASE_PATH . '/controllers/PasswordResetController.php';
         break;
 

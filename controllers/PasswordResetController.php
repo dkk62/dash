@@ -17,10 +17,22 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('?action=forgot_password');
     }
 
+    // Check users table first, then clients table
     $user = User::findByEmail($email);
+    $client = Client::findByEmail($email);
+    $account = null;
+    $accountType = null;
+
+    if ($user) {
+        $account = $user;
+        $accountType = 'user';
+    } elseif ($client) {
+        $account = $client;
+        $accountType = 'client';
+    }
 
     // Always show the same message to prevent email enumeration
-    if ($user) {
+    if ($account) {
         $db    = getDB();
         $token = bin2hex(random_bytes(32)); // 64-char hex token
         $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
@@ -28,14 +40,14 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         // Delete any existing unused tokens for this email
         $db->prepare("DELETE FROM password_resets WHERE email=?")->execute([$email]);
 
-        $db->prepare("INSERT INTO password_resets (email, token, expires_at) VALUES (?,?,?)")
-           ->execute([$email, $token, $expires]);
+        $db->prepare("INSERT INTO password_resets (email, token, account_type, expires_at) VALUES (?,?,?,?)")
+           ->execute([$email, $token, $accountType, $expires]);
 
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $resetUrl  = $scheme . '://' . $host . appUrl('?action=reset_password&token=' . urlencode($token));
         $subject   = 'Password Reset - Work Progress System';
-        $body      = "Hello {$user['name']},\n\n"
+        $body      = "Hello {$account['name']},\n\n"
                    . "A password reset was requested for your account.\n\n"
                    . "Click the link below (valid for 1 hour):\n"
                    . $resetUrl . "\n\n"
@@ -66,7 +78,7 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mail->Port       = SMTP_PORT;
                 $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
                 $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
-                $mail->addAddress($email, $user['name']);
+                $mail->addAddress($email, $account['name']);
                 $mail->Subject = $subject;
                 $mail->Body    = $body;
                 $mail->send();
@@ -133,7 +145,14 @@ if ($action === 'do_reset_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $hash = password_hash($password, PASSWORD_BCRYPT);
-    $db->prepare("UPDATE users SET password_hash=? WHERE email=?")->execute([$hash, $reset['email']]);
+
+    if (($reset['account_type'] ?? 'user') === 'client') {
+        // Update ALL client records sharing this email
+        $db->prepare("UPDATE clients SET password_hash=? WHERE email=?")->execute([$hash, $reset['email']]);
+    } else {
+        $db->prepare("UPDATE users SET password_hash=? WHERE email=?")->execute([$hash, $reset['email']]);
+    }
+
     $db->prepare("UPDATE password_resets SET used=1 WHERE token=?")->execute([$token]);
 
     setFlash('success', 'Password reset successfully. Please log in.');

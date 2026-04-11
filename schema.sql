@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `email` VARCHAR(191) NOT NULL,
   `token` VARCHAR(128) NOT NULL,
+  `account_type` ENUM('user','client') NOT NULL DEFAULT 'user',
   `expires_at` DATETIME NOT NULL,
   `used` TINYINT(1) NOT NULL DEFAULT 0,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
