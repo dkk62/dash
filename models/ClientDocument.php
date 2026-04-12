@@ -12,9 +12,11 @@ class ClientDocument {
     public static function forClientDetailed(int $clientId): array {
         $db = getDB();
         $stmt = $db->prepare(
-            "SELECT cd.id, cd.original_filename, cd.file_path, cd.uploaded_at, u.name AS uploaded_by_name
+            "SELECT cd.id, cd.original_filename, cd.file_path, cd.uploaded_at, cd.uploaded_by_type,
+                    COALESCE(u.name, c.name) AS uploaded_by_name
              FROM client_documents cd
-             JOIN users u ON u.id = cd.uploaded_by
+             LEFT JOIN users u ON u.id = cd.uploaded_by AND cd.uploaded_by_type = 'user'
+             LEFT JOIN clients c ON c.id = cd.uploaded_by AND cd.uploaded_by_type = 'client'
              WHERE cd.client_id = ?
              ORDER BY cd.uploaded_at DESC"
         );
@@ -46,10 +48,10 @@ class ClientDocument {
         return $result;
     }
 
-    public static function create(int $clientId, string $filePath, string $originalName, int $uploadedBy): int {
+    public static function create(int $clientId, string $filePath, string $originalName, int $uploadedBy, string $uploadedByType = 'user'): int {
         $db = getDB();
-        $stmt = $db->prepare("INSERT INTO client_documents (client_id, file_path, original_filename, uploaded_by) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$clientId, $filePath, $originalName, $uploadedBy]);
+        $stmt = $db->prepare("INSERT INTO client_documents (client_id, file_path, original_filename, uploaded_by, uploaded_by_type) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$clientId, $filePath, $originalName, $uploadedBy, $uploadedByType]);
         return (int)$db->lastInsertId();
     }
 

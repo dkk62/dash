@@ -31,6 +31,12 @@ if (!in_array($action, $publicActions) && !isLoggedIn()) {
     redirect('?action=login');
 }
 
+// Force clients to complete onboarding before accessing other pages
+$onboardingActions = ['onboarding', 'onboarding_save_section', 'onboarding_delete_file', 'onboarding_staged_files', 'onboarding_submit', 'logout'];
+if (isLoggedIn() && currentRole() === 'client' && !in_array($action, array_merge($publicActions, $onboardingActions)) && !isClientOnboardingComplete()) {
+    redirect('?action=onboarding');
+}
+
 // Route to controller
 switch ($action) {
     // Auth
@@ -67,6 +73,7 @@ switch ($action) {
 
     // Pending Work
     case 'pending':
+        if (currentRole() === 'client') { redirect('?action=dashboard'); }
         require_once BASE_PATH . '/controllers/PendingController.php';
         break;
 
@@ -76,6 +83,7 @@ switch ($action) {
     case 'client_edit':
     case 'client_delete':
     case 'client_archive':
+    case 'client_resend_welcome':
         requireClientPermission();
         require_once BASE_PATH . '/controllers/ClientController.php';
         break;
@@ -157,6 +165,16 @@ switch ($action) {
     case 'doc_download_stream':
     case 'doc_preview':
         require_once BASE_PATH . '/controllers/DocumentController.php';
+        break;
+
+    // Client onboarding form
+    case 'onboarding':
+    case 'onboarding_save_section':
+    case 'onboarding_delete_file':
+    case 'onboarding_staged_files':
+    case 'onboarding_submit':
+    case 'onboarding_review':
+        require_once BASE_PATH . '/controllers/OnboardingController.php';
         break;
 
     default:

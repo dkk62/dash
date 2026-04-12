@@ -99,6 +99,7 @@ if ($action === 'doc_upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $userId = (int) $_SESSION['user_id'];
+    $uploaderType = ($_SESSION['user_type'] ?? 'user') === 'client' ? 'client' : 'user';
     $dir = ClientDocument::docPath($clientId);
     ensureDir($dir);
 
@@ -128,7 +129,7 @@ if ($action === 'doc_upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $relativePath = str_replace(UPLOAD_PATH . '/', '', $destPath);
-        ClientDocument::create($clientId, $relativePath, $origName, $userId);
+        ClientDocument::create($clientId, $relativePath, $origName, $userId, $uploaderType);
         $uploadedNames[] = $origName;
     }
 

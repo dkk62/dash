@@ -17,8 +17,8 @@ ob_start();
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
-            <th>Password</th>
             <th>Cycle</th>
+            <th>Onboarding</th>
             <th>Processor 0</th>
             <th>Processor 1</th>
             <th style="min-width: 220px;">Actions</th>
@@ -37,8 +37,17 @@ ob_start();
             </td>
             <td><?= e($c['email']) ?></td>
             <td><?= e($c['phone'] ?? '') ?></td>
-            <td><?= !empty($c['password_hash']) ? '<span class="badge bg-success">Set</span>' : '<span class="badge bg-warning text-dark">Not Set</span>' ?></td>
             <td><span class="badge bg-secondary"><?= e($c['cycle_type']) ?></span></td>
+            <td>
+                <?php
+                    $onbStatus = $onboardingStatuses[(int)$c['id']] ?? null;
+                    if (in_array($onbStatus, ['submitted', 'reviewed'])):
+                ?>
+                    <span class="badge bg-success">Yes</span>
+                <?php else: ?>
+                    <span class="badge bg-warning text-dark">No</span>
+                <?php endif; ?>
+            </td>
             <td><?= $c['processor0_name'] ? e($c['processor0_name']) : '<span class="text-muted">—</span>' ?></td>
             <td><?= $c['processor1_name'] ? e($c['processor1_name']) : '<span class="text-muted">—</span>' ?></td>
             <td class="text-nowrap">
@@ -48,6 +57,36 @@ ob_start();
                 <a href="<?= e(appUrl('?action=periods&client_id=' . $c['id'])) ?>" class="btn btn-sm btn-outline-dark" title="Periods">
                     <i class="bi bi-calendar3"></i>
                 </a>
+                <?php
+                    $onbBtnClass = 'btn-outline-secondary';
+                    $onbTitle = 'Onboarding Form (Not Submitted)';
+                    if ($onbStatus === 'reviewed') {
+                        $onbBtnClass = 'btn-success';
+                        $onbTitle = 'Onboarding Form (Reviewed)';
+                    } elseif ($onbStatus === 'submitted') {
+                        $onbBtnClass = 'btn-primary';
+                        $onbTitle = 'Onboarding Form (Pending Review)';
+                    }
+                ?>
+                <?php if ($onbStatus === 'submitted' || $onbStatus === 'reviewed'): ?>
+                <a href="<?= e(appUrl('?action=onboarding&client_id=' . $c['id'])) ?>" class="btn btn-sm <?= $onbBtnClass ?>" title="<?= $onbTitle ?>">
+                    <i class="bi bi-clipboard-check"></i>
+                </a>
+                <?php else: ?>
+                <?php if (hasRole(['admin'])): ?>
+                <form method="POST" action="<?= e(appUrl('?action=client_resend_welcome')) ?>" class="d-inline confirm-delete"
+                      data-confirm-title="Send Welcome Email"
+                      data-confirm-message="Send a welcome email to &quot;<?= e($c['name']) ?>&quot; (<?= e($c['email']) ?>)?"
+                      data-confirm-warning="This will send an email asking the client to log in and complete their onboarding."
+                      data-confirm-button='<i class="bi bi-envelope me-1"></i>Send Email'>
+                    <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+                    <input type="hidden" name="id" value="<?= $c['id'] ?>">
+                    <button class="btn btn-sm btn-outline-info" title="Send Welcome Email">
+                        <i class="bi bi-envelope"></i>
+                    </button>
+                </form>
+                <?php endif; ?>
+                <?php endif; ?>
                 <button type="button" class="btn btn-sm btn-outline-primary edit-client-btn" title="Edit"
                     data-id="<?= $c['id'] ?>"
                     data-name="<?= e($c['name']) ?>"
@@ -128,11 +167,7 @@ ob_start();
                 <label class="form-label">Email *</label>
                 <input type="email" name="email" id="clientFormEmail" class="form-control" required>
             </div>
-            <div class="mb-3">
-                <label class="form-label" id="clientFormPasswordLabel">Password</label>
-                <input type="password" name="password" id="clientFormPassword" class="form-control" placeholder="Set client login password">
-                <small class="form-text text-muted">If provided, this will be the password for the client to login and access their dashboard.</small>
-            </div>
+
             <div class="mb-3">
                 <label class="form-label">Phone</label>
                 <input type="text" name="phone" id="clientFormPhone" class="form-control">
@@ -187,8 +222,6 @@ document.addEventListener('DOMContentLoaded', function() {
         form.reset();
         document.getElementById('clientFormId').value = '0';
         document.getElementById('clientModalLabel').innerHTML = '<i class="bi bi-person-plus me-2"></i>Add Client';
-        document.getElementById('clientFormPasswordLabel').textContent = 'Password';
-        document.getElementById('clientFormPassword').required = false;
         document.getElementById('clientFormSubmitText').textContent = 'Create';
     }
 
@@ -208,8 +241,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('clientFormProcessor0').value = btn.dataset.processor0_id || '';
             document.getElementById('clientFormProcessor1').value = btn.dataset.processor1_id || '';
             document.getElementById('clientModalLabel').innerHTML = '<i class="bi bi-pencil me-2"></i>Edit Client';
-            document.getElementById('clientFormPasswordLabel').textContent = 'Password (leave empty to keep current)';
-            document.getElementById('clientFormPassword').required = false;
             document.getElementById('clientFormSubmitText').textContent = 'Update';
 
             clientModal.show();

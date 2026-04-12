@@ -28,13 +28,154 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             Client::update($id, $name, $email, $phone, $cycleType, $password ?: null, $processor0Id, $processor1Id);
             setFlash('success', 'Client updated.');
         } else {
-            // Create new - password is optional
-            $newClientId = Client::create($name, $email, $phone, $cycleType, $password ?: null, $processor0Id, $processor1Id);
-            setFlash('success', 'Client created. Now add accounts for this client.');
-            redirect('?action=accounts&client_id=' . $newClientId);
+            // Check if this email already has existing client records
+            $isExistingEmail = Client::emailExists($email);
+
+            // Create new - set default password
+            $defaultPassword = 'Password#2026';
+            $newClientId = Client::create($name, $email, $phone, $cycleType, $defaultPassword, $processor0Id, $processor1Id);
+
+            // Send appropriate welcome email
+            if ($isExistingEmail) {
+                sendNewEntityEmail($name, $email);
+            } else {
+                sendClientWelcomeEmail($name, $email);
+            }
+
+            setFlash('success', 'Client created and welcome email sent.');
+            redirect('?action=clients');
         }
     } catch (RuntimeException $e) {
         setFlash('danger', $e->getMessage());
+    }
+    redirect('?action=clients');
+}
+
+/**
+ * Send welcome email to a newly created client.
+ */
+function sendClientWelcomeEmail(string $name, string $email): void {
+    $baseUrl  = 'https://dashboard.taxcheapo.com';
+    $loginUrl = $baseUrl . '/?action=login';
+    $resetUrl = $baseUrl . '/?action=forgot_password';
+
+    $subject = 'Welcome to TaxCheapo Client Portal';
+    $body    = "Hello {$name},\n\n"
+             . "Welcome to the TaxCheapo Client Portal! Your account has been created.\n\n"
+             . "Your login email is: {$email}\n\n"
+             . "Before your first login, please set your password by clicking the link below:\n"
+             . "{$resetUrl}\n\n"
+             . "After logging in, you will be asked to complete an onboarding form. "
+             . "Please fill out all sections so our team can begin working on your account.\n\n"
+             . "Login here:\n"
+             . "{$loginUrl}\n\n"
+             . "If you have any questions, please reply to this email or contact us at info@taxcheapo.com.\n\n"
+             . "Regards,\nTaxCheapo Team";
+
+    $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
+    if (!file_exists($mailerPath)) {
+        return;
+    }
+
+    require_once BASE_PATH . '/vendor/PHPMailer/src/Exception.php';
+    require_once BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
+    require_once BASE_PATH . '/vendor/PHPMailer/src/SMTP.php';
+
+    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = SMTP_HOST;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = SMTP_USER;
+        $mail->Password   = SMTP_PASS;
+        if (SMTP_SECURE === 'ssl') {
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        } elseif (SMTP_SECURE === 'tls') {
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        } else {
+            $mail->SMTPSecure = '';
+        }
+        $mail->Port       = SMTP_PORT;
+        $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
+        $mail->addAddress($email, $name);
+        $mail->Subject = $subject;
+        $mail->Body    = $body;
+        $mail->send();
+    } catch (\Exception $e) {
+        // Log but don't block client creation
+        error_log('Welcome email failed for ' . $email . ': ' . $e->getMessage());
+    }
+}
+
+/**
+ * Send email when a new entity/organization is added for an existing client email.
+ */
+function sendNewEntityEmail(string $entityName, string $email): void {
+    $baseUrl  = 'https://dashboard.taxcheapo.com';
+    $loginUrl = $baseUrl . '/?action=login';
+
+    $subject = 'New Organization Added - TaxCheapo Client Portal';
+    $body    = "Hello,\n\n"
+             . "A new organization has been added to your TaxCheapo Client Portal account:\n\n"
+             . "Organization: {$entityName}\n\n"
+             . "Please log in and complete the onboarding form for this organization. "
+             . "You can switch between your entities on the onboarding page.\n\n"
+             . "Login here:\n"
+             . "{$loginUrl}\n\n"
+             . "If you have any questions, please reply to this email or contact us at info@taxcheapo.com.\n\n"
+             . "Regards,\nTaxCheapo Team";
+
+    $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
+    if (!file_exists($mailerPath)) {
+        return;
+    }
+
+    require_once BASE_PATH . '/vendor/PHPMailer/src/Exception.php';
+    require_once BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
+    require_once BASE_PATH . '/vendor/PHPMailer/src/SMTP.php';
+
+    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = SMTP_HOST;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = SMTP_USER;
+        $mail->Password   = SMTP_PASS;
+        if (SMTP_SECURE === 'ssl') {
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        } elseif (SMTP_SECURE === 'tls') {
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        } else {
+            $mail->SMTPSecure = '';
+        }
+        $mail->Port       = SMTP_PORT;
+        $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
+        $mail->addAddress($email, $entityName);
+        $mail->Subject = $subject;
+        $mail->Body    = $body;
+        $mail->send();
+    } catch (\Exception $e) {
+        error_log('New entity email failed for ' . $email . ': ' . $e->getMessage());
+    }
+}
+
+if ($action === 'client_resend_welcome' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
+    requireRole(['admin']);
+    $id = (int) ($_POST['id'] ?? 0);
+    if ($id > 0) {
+        $client = Client::find($id);
+        if ($client) {
+            $hasOtherClients = Client::emailExists($client['email'], $id);
+            if ($hasOtherClients) {
+                sendNewEntityEmail($client['name'], $client['email']);
+            } else {
+                sendClientWelcomeEmail($client['name'], $client['email']);
+            }
+            setFlash('success', 'Welcome email sent to ' . $client['email'] . '.');
+        }
     }
     redirect('?action=clients');
 }
@@ -66,6 +207,15 @@ $clients = Client::all();
 $editClient = null;
 if ($action === 'client_edit' && isset($_GET['id'])) {
     $editClient = Client::find((int) $_GET['id']);
+}
+
+// Fetch onboarding statuses for all clients
+require_once BASE_PATH . '/models/OnboardingForm.php';
+$onbDb = getDB();
+$onbStmt = $onbDb->query("SELECT client_id, status FROM client_onboarding");
+$onboardingStatuses = [];
+while ($row = $onbStmt->fetch()) {
+    $onboardingStatuses[(int)$row['client_id']] = $row['status'];
 }
 
 $processorUsers = User::byRoles(['processor0', 'processor1']);

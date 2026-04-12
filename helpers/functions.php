@@ -636,3 +636,27 @@ function buildPendingReportHtml(array $reportData, string $reportDate): string {
 
     return $html;
 }
+
+/**
+ * Check whether the logged-in client has completed onboarding.
+ */
+function isClientOnboardingComplete(): bool {
+    if (currentRole() !== 'client') return true;
+    $clientIds = array_map('intval', (array) ($_SESSION['client_ids'] ?? []));
+    if (empty($clientIds)) return true;
+    $db = getDB();
+    $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
+    $stmt = $db->prepare("SELECT client_id, status FROM client_onboarding WHERE client_id IN ($placeholders)");
+    $stmt->execute($clientIds);
+    $completed = [];
+    while ($row = $stmt->fetch()) {
+        if (in_array($row['status'], ['submitted', 'reviewed'], true)) {
+            $completed[] = (int) $row['client_id'];
+        }
+    }
+    // All entities must have submitted/reviewed onboarding
+    foreach ($clientIds as $cid) {
+        if (!in_array($cid, $completed, true)) return false;
+    }
+    return true;
+}

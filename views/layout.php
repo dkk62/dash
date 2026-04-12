@@ -22,21 +22,33 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
+                <?php $onbDone = isClientOnboardingComplete(); ?>
+                <?php if ($onbDone): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=dashboard')) ?>">
                         <i class="bi bi-grid-3x3"></i> Dashboard
                     </a>
                 </li>
+                <?php if (currentRole() !== 'client'): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=pending')) ?>">
                         <i class="bi bi-hourglass-split"></i> Pending Work
                     </a>
                 </li>
+                <?php endif; ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=documents')) ?>">
                         <i class="bi bi-file-earmark-text"></i> Documents
                     </a>
                 </li>
+                <?php endif; ?>
+                <?php if (currentRole() === 'client'): ?>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= e(appUrl('?action=onboarding')) ?>">
+                        <i class="bi bi-clipboard-check"></i> Onboarding
+                    </a>
+                </li>
+                <?php endif; ?>
                 <?php if (hasRole(['admin']) || hasClientPermission()): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=clients')) ?>">

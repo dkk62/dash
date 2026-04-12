@@ -991,4 +991,493 @@ document.addEventListener('DOMContentLoaded', function () {
             xhr.send(formData);
         });
     }
+
+    // ========================================================================
+    // Onboarding form: repeatable rows (add/remove)
+    // ========================================================================
+    var rowTemplates = {
+        bankAccountRows: function () {
+            return '<tr>' +
+                '<td><input type="text" name="ba_bank[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="ba_account[]" class="form-control form-control-sm"></td>' +
+                '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove"><i class="bi bi-x-lg"></i></button></td>' +
+                '</tr>';
+        },
+        creditCardRows: function () {
+            return '<tr>' +
+                '<td><input type="text" name="cc_bank[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="cc_account[]" class="form-control form-control-sm"></td>' +
+                '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove"><i class="bi bi-x-lg"></i></button></td>' +
+                '</tr>';
+        },
+        loanRows: function () {
+            return '<tr>' +
+                '<td><input type="text" name="ln_bank[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="ln_account[]" class="form-control form-control-sm"></td>' +
+                '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove"><i class="bi bi-x-lg"></i></button></td>' +
+                '</tr>';
+        },
+        merchantRows: function () {
+            return '<tr>' +
+                '<td><input type="text" name="mr_name[]" class="form-control form-control-sm"></td>' +
+                '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove"><i class="bi bi-x-lg"></i></button></td>' +
+                '</tr>';
+        },
+        autoPayRows: function () {
+            return '<tr>' +
+                '<td><input type="text" name="ap_vendor[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="ap_amount[]" class="form-control form-control-sm"></td>' +
+                '<td><select name="ap_monthly[]" class="form-select form-select-sm"><option value="">--</option><option value="yes">Yes</option><option value="no">No</option></select></td>' +
+                '<td><input type="text" name="ap_category[]" class="form-control form-control-sm"></td>' +
+                '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove"><i class="bi bi-x-lg"></i></button></td>' +
+                '</tr>';
+        },
+        rentalRows: function () {
+            return '<tr>' +
+                '<td><input type="text" name="ri_address[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="ri_tenant[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="ri_rent[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="ri_deposit[]" class="form-control form-control-sm"></td>' +
+                '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove"><i class="bi bi-x-lg"></i></button></td>' +
+                '</tr>';
+        },
+        relativeRows: function () {
+            var idx = document.querySelectorAll('#relativeRows tr').length;
+            return '<tr>' +
+                '<td><input type="text" name="rel_name[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="rel_relationship[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="rel_amount[]" class="form-control form-control-sm"></td>' +
+                '<td class="text-center text-nowrap">' +
+                    '<div class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="rel_pay_type[' + idx + ']" value="salary"><label class="form-check-label">Salary</label></div>' +
+                    '<div class="form-check form-check-inline mb-0"><input class="form-check-input" type="radio" name="rel_pay_type[' + idx + ']" value="drawings"><label class="form-check-label">Drawings</label></div>' +
+                '</td>' +
+                '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove"><i class="bi bi-x-lg"></i></button></td>' +
+                '</tr>';
+        },
+        contractorRows: function () {
+            return '<tr>' +
+                '<td><input type="text" name="con_name[]" class="form-control form-control-sm"></td>' +
+                '<td><input type="text" name="con_service[]" class="form-control form-control-sm"></td>' +
+                '<td><select name="con_monthly[]" class="form-select form-select-sm"><option value="">--</option><option value="yes">Yes</option><option value="no">No</option></select></td>' +
+                '<td><select name="con_1099[]" class="form-select form-select-sm"><option value="">--</option><option value="yes">Yes</option><option value="no">No</option></select></td>' +
+                '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove"><i class="bi bi-x-lg"></i></button></td>' +
+                '</tr>';
+        }
+    };
+
+    // Add row buttons
+    document.querySelectorAll('.add-row-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var targetId = this.getAttribute('data-target');
+            var tbody = document.getElementById(targetId);
+            if (tbody && rowTemplates[targetId]) {
+                tbody.insertAdjacentHTML('beforeend', rowTemplates[targetId]());
+            }
+        });
+    });
+
+    // Remove row buttons (delegated)
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.remove-row-btn');
+        if (btn) {
+            var tr = btn.closest('tr');
+            var tbody = tr.parentElement;
+            if (tbody.children.length > 1) {
+                tr.remove();
+            } else {
+                // Clear fields instead of removing the last row
+                tr.querySelectorAll('input, select').forEach(function (input) {
+                    if (input.type === 'checkbox') { input.checked = false; }
+                    else { input.value = ''; }
+                });
+            }
+        }
+    });
+
+    // ========================================================================
+    // Onboarding Wizard: Tab navigation, AJAX saves, file staging
+    // ========================================================================
+    (function () {
+        var csrfEl   = document.getElementById('onbCsrfToken');
+        if (!csrfEl) return; // not on onboarding page
+
+        var csrf     = csrfEl.value;
+        var clientId = document.getElementById('onbClientId').value;
+        var isEdit   = document.getElementById('onbIsEdit').value === '1';
+        var canEdit  = document.getElementById('onbCanEdit').value === '1';
+        var statusEl = document.getElementById('onbSaveStatus');
+        var baseUrl  = document.querySelector('link[rel="canonical"]')
+                       ? document.querySelector('link[rel="canonical"]').href.split('?')[0]
+                       : window.location.pathname;
+
+        function ajaxUrl(action) {
+            return baseUrl + '?action=' + action;
+        }
+
+        function showStatus(msg, type) {
+            statusEl.textContent = msg;
+            statusEl.className = 'text-muted small text-' + (type || 'secondary');
+            if (type === 'success') {
+                setTimeout(function () { statusEl.textContent = ''; }, 3000);
+            }
+        }
+
+        // ---- Managed file lists per input ----
+        var managedFilesMap = new Map(); // input element -> File[]
+
+        function getManagedFiles(input) {
+            if (!managedFilesMap.has(input)) managedFilesMap.set(input, []);
+            return managedFilesMap.get(input);
+        }
+
+        function renderFileList(input) {
+            var listDiv = input.parentElement.querySelector('.onb-file-list');
+            if (!listDiv) return;
+            var files = getManagedFiles(input);
+            listDiv.innerHTML = '';
+            files.forEach(function (file, idx) {
+                var item = document.createElement('div');
+                item.className = 'onb-file-item d-flex align-items-center gap-2 py-1 px-2 mb-1 rounded bg-light border';
+                item.style.fontSize = '0.82rem';
+                item.innerHTML = '<i class="bi bi-file-earmark-pdf text-danger"></i>' +
+                    '<span class="text-truncate flex-grow-1" title="' + escapeHtml(file.name) + '">' + escapeHtml(file.name) + '</span>' +
+                    '<span class="text-muted" style="font-size:0.75rem;white-space:nowrap">' + formatFileSize(file.size) + '</span>' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger border-0 p-0 px-1 onb-file-remove" data-file-idx="' + idx + '" title="Remove"><i class="bi bi-trash"></i></button>';
+                listDiv.appendChild(item);
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function syncInputFiles(input) {
+            var files = getManagedFiles(input);
+            try {
+                var dt = new DataTransfer();
+                files.forEach(function (f) { dt.items.add(f); });
+                input.files = dt.files;
+            } catch (e) {
+                // DataTransfer not supported in older browsers; files will be collected from managedFilesMap
+            }
+        }
+
+        // Listen for file selection — accumulate into managed list
+        document.addEventListener('change', function (e) {
+            var input = e.target;
+            if (!input.classList || !input.classList.contains('onb-file-input')) return;
+            var managed = getManagedFiles(input);
+            for (var i = 0; i < input.files.length; i++) {
+                managed.push(input.files[i]);
+            }
+            syncInputFiles(input);
+            renderFileList(input);
+        });
+
+        // Listen for trash button click — remove file from managed list
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.onb-file-remove');
+            if (!btn) return;
+            var listDiv = btn.closest('.onb-file-list');
+            if (!listDiv) return;
+            var input = listDiv.parentElement.querySelector('input.onb-file-input');
+            if (!input) return;
+            var idx = parseInt(btn.getAttribute('data-file-idx'), 10);
+            var managed = getManagedFiles(input);
+            if (idx >= 0 && idx < managed.length) {
+                managed.splice(idx, 1);
+            }
+            syncInputFiles(input);
+            renderFileList(input);
+        });
+
+        function clearManagedFiles(container) {
+            container.querySelectorAll('input.onb-file-input').forEach(function (input) {
+                managedFilesMap.set(input, []);
+                input.value = '';
+                renderFileList(input);
+            });
+        }
+
+        // ---- Next / Prev tab navigation ----
+        var tabButtons = document.querySelectorAll('#onbTabs button[data-bs-toggle="tab"]');
+
+        function activateTab(index) {
+            if (index >= 0 && index < tabButtons.length) {
+                new bootstrap.Tab(tabButtons[index]).show();
+            }
+        }
+
+        function currentTabIndex() {
+            for (var i = 0; i < tabButtons.length; i++) {
+                if (tabButtons[i].classList.contains('active')) return i;
+            }
+            return 0;
+        }
+
+        document.querySelectorAll('.onb-next-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { activateTab(currentTabIndex() + 1); });
+        });
+        document.querySelectorAll('.onb-prev-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { activateTab(currentTabIndex() - 1); });
+        });
+
+        // ---- Collect form data for a tab pane ----
+        function collectTabData(tabPane) {
+            var data = new FormData();
+            data.append('csrf_token', csrf);
+            data.append('client_id', clientId);
+            data.append('section', tabPane.getAttribute('data-section'));
+
+            // Gather all inputs/selects/textareas in tab
+            tabPane.querySelectorAll('input, select, textarea').forEach(function (el) {
+                if (!el.name || el.name === 'csrf_token') return;
+                if (el.type === 'file') return; // handled separately
+                if (el.type === 'checkbox') {
+                    if (el.name.endsWith('[]')) {
+                        if (el.checked) data.append(el.name, el.value);
+                    } else {
+                        if (el.checked) data.append(el.name, el.value);
+                    }
+                } else if (el.type === 'radio') {
+                    if (el.checked) data.append(el.name, el.value);
+                } else {
+                    data.append(el.name, el.value);
+                }
+            });
+
+            // Gather file inputs from managed files map
+            tabPane.querySelectorAll('input[type="file"].onb-file-input').forEach(function (fi) {
+                var managed = getManagedFiles(fi);
+                if (managed.length > 0) {
+                    managed.forEach(function (file) {
+                        data.append(fi.name, file);
+                    });
+                }
+            });
+
+            return data;
+        }
+
+        // ---- Save section via AJAX ----
+        function saveSection(tabPane, callback) {
+            var section = tabPane.getAttribute('data-section');
+            if (!section) { if (callback) callback(false); return; }
+
+            showStatus('Saving...', 'secondary');
+            var saveBtn = tabPane.querySelector('.onb-save-btn');
+            if (saveBtn) { saveBtn.disabled = true; }
+
+            var data = collectTabData(tabPane);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', ajaxUrl('onboarding_save_section'), true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                if (saveBtn) saveBtn.disabled = false;
+                var resp = xhr.response;
+                if (xhr.status >= 200 && xhr.status < 300 && resp && resp.success) {
+                    showStatus('Saved!', 'success');
+                    // Update tab checkmark
+                    updateTabCheckmark(section, true);
+                    // Update staged files list
+                    if (resp.staged_files) renderStagedFiles(resp.staged_files);
+                    // Clear file inputs and managed file lists after upload
+                    clearManagedFiles(tabPane);
+                    if (callback) callback(true);
+                } else {
+                    showStatus('Save failed: ' + (resp ? resp.message : 'Unknown error'), 'danger');
+                    if (callback) callback(false);
+                }
+            });
+            xhr.addEventListener('error', function () {
+                if (saveBtn) saveBtn.disabled = false;
+                showStatus('Network error. Please try again.', 'danger');
+                if (callback) callback(false);
+            });
+            xhr.send(data);
+        }
+
+        // ---- Save button handlers ----
+        document.querySelectorAll('.onb-save-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var tabPane = btn.closest('.tab-pane');
+                saveSection(tabPane);
+            });
+        });
+
+        // ---- Upload Files button (Documents tab) ----
+        document.querySelectorAll('.onb-upload-files-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var section = btn.getAttribute('data-section') || 'documents_upload';
+                var container = btn.closest('div');
+                var fileInput = container ? container.querySelector('input.onb-file-input') : null;
+                if (!fileInput) return;
+                var managed = getManagedFiles(fileInput);
+                if (managed.length === 0) {
+                    alert('Please select files first.');
+                    return;
+                }
+
+                showStatus('Uploading files...', 'secondary');
+                btn.disabled = true;
+
+                var data = new FormData();
+                data.append('csrf_token', csrf);
+                data.append('client_id', clientId);
+                data.append('section', 'tax_compliance'); // piggyback on an existing section
+                managed.forEach(function (file) {
+                    data.append('auto_pay_form[]', file);
+                });
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', ajaxUrl('onboarding_save_section'), true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.responseType = 'json';
+                xhr.addEventListener('load', function () {
+                    btn.disabled = false;
+                    var resp = xhr.response;
+                    if (xhr.status >= 200 && xhr.status < 300 && resp && resp.success) {
+                        showStatus('Files uploaded!', 'success');
+                        if (resp.staged_files) renderStagedFiles(resp.staged_files);
+                        managedFilesMap.set(fileInput, []);
+                        fileInput.value = '';
+                        renderFileList(fileInput);
+                    } else {
+                        showStatus('Upload failed: ' + (resp ? resp.message : 'Unknown error'), 'danger');
+                    }
+                });
+                xhr.addEventListener('error', function () {
+                    btn.disabled = false;
+                    showStatus('Network error.', 'danger');
+                });
+                xhr.send(data);
+            });
+        });
+
+        // ---- Tab checkmark update ----
+        function updateTabCheckmark(section, saved) {
+            tabButtons.forEach(function (tb) {
+                var target = tb.getAttribute('data-bs-target');
+                var pane   = document.querySelector(target);
+                if (pane && pane.getAttribute('data-section') === section) {
+                    var icon = tb.querySelector('.bi-check-circle-fill');
+                    if (saved && !icon) {
+                        tb.insertAdjacentHTML('beforeend', '<i class="bi bi-check-circle-fill text-success ms-1"></i>');
+                    }
+                }
+            });
+        }
+
+        // ---- Staged files rendering ----
+        function renderStagedFiles(files) {
+            var tbody   = document.getElementById('onbStagedBody');
+            var table   = document.getElementById('onbStagedTable');
+            var noFiles = document.getElementById('onbNoFiles');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            if (!files || files.length === 0) {
+                if (table) table.style.display = 'none';
+                if (noFiles) noFiles.style.display = '';
+                return;
+            }
+            if (table) table.style.display = '';
+            if (noFiles) noFiles.style.display = 'none';
+
+            files.forEach(function (f, i) {
+                var deleteBtn = (!isEdit && canEdit)
+                    ? '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger onb-delete-file-btn" data-file-id="' + f.id + '" title="Remove"><i class="bi bi-trash"></i></button></td>'
+                    : '';
+                tbody.insertAdjacentHTML('beforeend',
+                    '<tr data-file-id="' + f.id + '">' +
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td>' + escapeHtml(f.original_name) + '</td>' +
+                    '<td><span class="badge bg-secondary">' + escapeHtml(f.field) + '</span></td>' +
+                    deleteBtn +
+                    '</tr>'
+                );
+            });
+        }
+
+        function escapeHtml(str) {
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ---- Delete staged file ----
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.onb-delete-file-btn');
+            if (!btn) return;
+            var fileId = btn.getAttribute('data-file-id');
+            if (!confirm('Remove this staged file?')) return;
+
+            btn.disabled = true;
+            var data = new FormData();
+            data.append('csrf_token', csrf);
+            data.append('client_id', clientId);
+            data.append('file_id', fileId);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', ajaxUrl('onboarding_delete_file'), true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                var resp = xhr.response;
+                if (xhr.status >= 200 && xhr.status < 300 && resp && resp.success) {
+                    showStatus('File removed.', 'success');
+                    renderStagedFiles(resp.staged_files);
+                } else {
+                    alert('Failed to delete file: ' + (resp ? resp.message : 'Unknown error'));
+                    btn.disabled = false;
+                }
+            });
+            xhr.addEventListener('error', function () {
+                alert('Network error.');
+                btn.disabled = false;
+            });
+            xhr.send(data);
+        });
+
+        // ---- Final Submit ----
+        var submitBtn = document.getElementById('onbFinalSubmitBtn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function () {
+                if (!confirm('Submit your onboarding form? All staged files will be moved to your Documents section. You will not be able to modify the form after submission.')) return;
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Submitting...';
+
+                var data = new FormData();
+                data.append('csrf_token', csrf);
+                data.append('client_id', clientId);
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', ajaxUrl('onboarding_submit'), true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.responseType = 'json';
+                xhr.addEventListener('load', function () {
+                    var resp = xhr.response;
+                    if (xhr.status >= 200 && xhr.status < 300 && resp && resp.success) {
+                        alert(resp.message || 'Onboarding submitted successfully!');
+                        window.location.reload();
+                    } else {
+                        alert('Submit failed: ' + (resp ? resp.message : 'Unknown error'));
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-send"></i> Submit Onboarding';
+                    }
+                });
+                xhr.addEventListener('error', function () {
+                    alert('Network error. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-send"></i> Submit Onboarding';
+                });
+                xhr.send(data);
+            });
+        }
+    })();
 });

@@ -251,10 +251,28 @@ CREATE TABLE IF NOT EXISTS `client_documents` (
   `file_path` VARCHAR(500) NOT NULL,
   `original_filename` VARCHAR(255) NOT NULL,
   `uploaded_by` INT(11) NOT NULL,
+  `uploaded_by_type` ENUM('user','client') NOT NULL DEFAULT 'user',
   `uploaded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_cd_client` (`client_id`),
   KEY `idx_cd_uploaded_by` (`uploaded_by`),
-  CONSTRAINT `cd_ibfk_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `cd_ibfk_user` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`)
+  CONSTRAINT `cd_ibfk_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- Table: client_onboarding (onboarding checklist form data per client)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `client_onboarding` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `client_id` INT(11) NOT NULL,
+  `form_data` JSON NOT NULL,
+  `status` ENUM('draft','submitted','reviewed') NOT NULL DEFAULT 'draft',
+  `submitted_at` DATETIME DEFAULT NULL,
+  `reviewed_at` DATETIME DEFAULT NULL,
+  `reviewed_by` INT(11) DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_onb_client` (`client_id`),
+  CONSTRAINT `onb_ibfk_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
