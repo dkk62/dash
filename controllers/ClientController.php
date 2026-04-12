@@ -59,18 +59,18 @@ function sendClientWelcomeEmail(string $name, string $email): void {
     $loginUrl = $baseUrl . '/?action=login';
     $resetUrl = $baseUrl . '/?action=forgot_password';
 
-    $subject = 'Welcome to TaxCheapo Client Portal';
+    $subject = 'Welcome to Tax Cheapo – Client Portal Access';
     $body    = "Hello {$name},\n\n"
-             . "Welcome to the TaxCheapo Client Portal! Your account has been created.\n\n"
-             . "Your login email is: {$email}\n\n"
-             . "Before your first login, please set your password by clicking the link below:\n"
+             . "Welcome to the Tax Cheapo Client Portal—your account has been successfully created.\n\n"
+             . "Login Email: {$email}\n\n"
+             . "To get started, please set your password using the link below:\n"
              . "{$resetUrl}\n\n"
-             . "After logging in, you will be asked to complete an onboarding form. "
-             . "Please fill out all sections so our team can begin working on your account.\n\n"
-             . "Login here:\n"
+             . "Once your password is set, you can log in here:\n"
              . "{$loginUrl}\n\n"
-             . "If you have any questions, please reply to this email or contact us at info@taxcheapo.com.\n\n"
-             . "Regards,\nTaxCheapo Team";
+             . "After logging in, you'll be prompted to complete a short onboarding form. "
+             . "Please complete all sections so our team can begin working on your account without delay.\n\n"
+             . "If you have any questions, feel free to reply to this email or contact us at info@taxcheapo.com.\n\n"
+             . "Kind regards,\nTax Cheapo Team";
 
     $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
     if (!file_exists($mailerPath)) {

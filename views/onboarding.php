@@ -118,6 +118,13 @@ ob_start();
             <i class="bi bi-file-earmark-arrow-up"></i> <span class="d-none d-md-inline">Documents</span>
         </button>
     </li>
+    <?php if (hasRole(['admin'])): ?>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-review" type="button" role="tab">
+            <i class="bi bi-clipboard-check"></i> <span class="d-none d-md-inline">Review</span>
+        </button>
+    </li>
+    <?php endif; ?>
 </ul>
 
 <div class="tab-content border border-top-0 rounded-bottom p-3 mb-4" id="onbTabContent">
@@ -337,7 +344,7 @@ ob_start();
     </div>
 
     <hr class="my-3">
-    <h5 class="mb-3">9. Income Sources</h5>
+    <h5 class="mb-3">6. Income Sources</h5>
     <p class="text-muted small mb-2">How do you receive income? (Check all that apply)</p>
     <div class="row g-2">
         <?php foreach (['Zelle','Cash App','Checks','Bank Transfer','Property Management'] as $src): ?>
@@ -368,7 +375,7 @@ ob_start();
 
 <!-- ==================== TAB 4: Employees & Contractors ==================== -->
 <div class="tab-pane fade" id="tab-employees" role="tabpanel" data-section="employees">
-    <h5 class="mb-3">6. Employees</h5>
+    <h5 class="mb-3">7. Employees</h5>
     <div class="row g-3">
         <div class="col-md-6">
             <label class="form-label">Do you have employees?</label>
@@ -402,7 +409,7 @@ ob_start();
 
     <hr class="my-3">
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <h5 class="mb-0">7. Related Party Payments</h5>
+        <h5 class="mb-0">8. Related Party Payments</h5>
         <?php if ($canEdit): ?><button type="button" class="btn btn-sm btn-outline-dark add-row-btn" data-target="relativeRows"><i class="bi bi-plus-lg"></i> Add Row</button><?php endif; ?>
     </div>
     <div class="row g-3 mb-3">
@@ -446,7 +453,7 @@ ob_start();
 
     <hr class="my-3">
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <h5 class="mb-0">8. Independent Contractors</h5>
+        <h5 class="mb-0">9. Independent Contractors</h5>
         <?php if ($canEdit): ?><button type="button" class="btn btn-sm btn-outline-dark add-row-btn" data-target="contractorRows"><i class="bi bi-plus-lg"></i> Add Row</button><?php endif; ?>
     </div>
     <div class="row g-3 mb-3">
@@ -537,7 +544,7 @@ ob_start();
     <div class="alert alert-success small mb-0 mt-2"><i class="bi bi-check-circle"></i> Our office will reach out each year with reminders and assistance.</div>
 
     <hr class="my-3">
-    <h5 class="mb-3">13. Additional Notes</h5>
+    <h5 class="mb-3">12. Additional Notes</h5>
     <textarea name="additional_notes" class="form-control form-control-sm" rows="4" placeholder="Any specific transactions or business details we should be aware of..." <?= $canEdit?'':'readonly' ?>><?= $val('additional_notes') ?></textarea>
 
     <?php if ($canEdit): ?>
@@ -553,7 +560,7 @@ ob_start();
 
 <!-- ==================== TAB 6: Documents & Submit ==================== -->
 <div class="tab-pane fade" id="tab-documents" role="tabpanel">
-    <h5 class="mb-3">12. Required Documents</h5>
+    <h5 class="mb-3">13. Required Documents</h5>
     <p class="text-muted small mb-2">Ensure these PDF documents are uploaded before submitting:</p>
     <div class="table-responsive mb-3">
         <table class="table table-sm table-bordered mb-0" style="font-size:0.85rem;">
@@ -615,14 +622,45 @@ ob_start();
     </div>
     <?php endif; ?>
 
+</div>
+
+<?php if (hasRole(['admin'])): ?>
+<!-- ==================== TAB 7: Review & Acknowledgement (Admin Only) ==================== -->
+<div class="tab-pane fade" id="tab-review" role="tabpanel">
+    <h5 class="mb-3">14. Review &amp; Acknowledgement</h5>
+    <p class="text-muted small mb-2">Admin-only section for reviewing and acknowledging the submitted onboarding form.</p>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label class="form-label">Form Status</label>
+            <div><span class="badge bg-<?= $formStatus === 'submitted' ? 'warning' : ($formStatus === 'reviewed' ? 'success' : 'secondary') ?> fs-6"><?= e(ucfirst($formStatus)) ?></span></div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Submitted By</label>
+            <div><?= e($client['business_name'] ?? $client['name'] ?? '—') ?></div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Review Notes</label>
+        <textarea name="review_notes" class="form-control form-control-sm" rows="4" placeholder="Add any internal notes about this onboarding submission..." <?= $canReview ? '' : 'readonly' ?>><?= $val('review_notes') ?></textarea>
+    </div>
+
     <?php if ($canReview): ?>
-    <form method="POST" action="<?= e(appUrl('?action=onboarding_review')) ?>" class="mt-4">
+    <form method="POST" action="<?= e(appUrl('?action=onboarding_review')) ?>" class="mt-3">
         <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
         <input type="hidden" name="client_id" value="<?= (int) $client['id'] ?>">
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="reviewAck" required>
+            <label class="form-check-label" for="reviewAck">I have reviewed all sections, documents, and information provided.</label>
+        </div>
         <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Mark as Reviewed</button>
     </form>
+    <?php else: ?>
+    <div class="alert alert-info small mt-3"><i class="bi bi-info-circle"></i> The form must be in <strong>Submitted</strong> status to be marked as reviewed.</div>
     <?php endif; ?>
 </div>
+<?php endif; ?>
 
 </div><!-- /tab-content -->
 
