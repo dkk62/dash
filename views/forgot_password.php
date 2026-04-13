@@ -7,6 +7,14 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="<?= e(assetUrl('css/style.css')) ?>" rel="stylesheet">
+<?php if (isset($_GET['sent']) && $_GET['sent'] === '1'): ?>
+<meta http-equiv="refresh" content="4;url=<?= e(appUrl('?action=login')) ?>">
+<script>
+    setTimeout(function() {
+        window.location.href = "<?= e(appUrl('?action=login')) ?>";
+    }, 4000);
+</script>
+<?php endif; ?>
 </head>
 <body class="bg-light">
 <div class="container">
@@ -27,7 +35,10 @@
                         <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                         <div class="mb-3">
                             <label class="form-label">Email Address</label>
-                            <input type="email" name="email" class="form-control" required autofocus>
+                            <?php $prefillEmail = $_GET['email'] ?? ''; ?>
+                            <input type="email" name="email" class="form-control" required autofocus
+                                   value="<?= e($prefillEmail) ?>"
+                                   <?= $prefillEmail !== '' ? 'readonly' : '' ?>>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="bi bi-send"></i> Send Reset Link

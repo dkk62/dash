@@ -47,12 +47,16 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $resetUrl  = $scheme . '://' . $host . appUrl('?action=reset_password&token=' . urlencode($token));
         $subject   = 'Password Reset - Work Progress System';
-        $body      = "Hello {$account['name']},\n\n"
-                   . "A password reset was requested for your account.\n\n"
-                   . "Click the link below (valid for 1 hour):\n"
-                   . $resetUrl . "\n\n"
-                   . "If you did not request this, please ignore this email.\n\n"
-                   . "Regards,\nWork Progress System";
+        $safeUrl   = htmlspecialchars($resetUrl, ENT_QUOTES, 'UTF-8');
+        $safeName  = htmlspecialchars($account['name'], ENT_QUOTES, 'UTF-8');
+        $innerHtml = "<p>Hello {$safeName},</p>"
+                   . "<p>A password reset was requested for your account.</p>"
+                   . "<p>Click the button below to reset your password (valid for 1 hour):</p>"
+                   . "<p style='margin:20px 0;text-align:center;'><a href='{$safeUrl}' style='background-color:#0d6efd;color:#fff;padding:12px 28px;text-decoration:none;border-radius:5px;display:inline-block;font-weight:bold;'>Reset Password</a></p>"
+                   . "<p style='font-size:13px;color:#666;'>Or copy and paste this link into your browser:<br><a href='{$safeUrl}'>{$safeUrl}</a></p>"
+                   . "<p>If you did not request this, please ignore this email.</p>"
+                   . "<p>Regards,<br>Work Progress System</p>";
+        $body      = wrapEmailHtml($innerHtml);
 
         // Send via PHPMailer
         $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
@@ -79,6 +83,7 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
                 $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
                 $mail->addAddress($email, $account['name']);
+                $mail->isHTML(true);
                 $mail->Subject = $subject;
                 $mail->Body    = $body;
                 $mail->send();
@@ -96,16 +101,17 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    setFlash('success', 'If that email is registered, a reset link has been sent.');
-    redirect('?action=forgot_password');
+    setFlash('success', 'If that email is registered, a reset link has been sent. Redirecting to login...');
+    redirect('?action=forgot_password&sent=1');
 }
 
 // ---- SHOW RESET PASSWORD FORM ----
 if ($action === 'reset_password') {
     $token = $_GET['token'] ?? '';
     $db    = getDB();
-    $row   = $db->prepare("SELECT * FROM password_resets WHERE token=? AND used=0 AND expires_at > NOW()");
-    $row->execute([$token]);
+    $now   = date('Y-m-d H:i:s');
+    $row   = $db->prepare("SELECT * FROM password_resets WHERE token=? AND used=0 AND expires_at > ?");
+    $row->execute([$token, $now]);
     $reset = $row->fetch();
 
     if (!$reset) {
@@ -135,8 +141,9 @@ if ($action === 'do_reset_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $db  = getDB();
-    $row = $db->prepare("SELECT * FROM password_resets WHERE token=? AND used=0 AND expires_at > NOW()");
-    $row->execute([$token]);
+    $now = date('Y-m-d H:i:s');
+    $row = $db->prepare("SELECT * FROM password_resets WHERE token=? AND used=0 AND expires_at > ?");
+    $row->execute([$token, $now]);
     $reset = $row->fetch();
 
     if (!$reset) {

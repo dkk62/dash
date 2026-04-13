@@ -69,30 +69,40 @@ foreach ($allProcessors as $recipient) {
         continue;
     }
 
-    // Build body — one section per upload row
-    $lines = '';
+    // Build body — HTML table of uploads
+    $subject = "Daily Upload Summary - {$date}";
+    $h = fn(string $s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+
+    $uploadTableRows = '';
     foreach ($userRows as $r) {
         $fileNames  = json_decode($r['file_names'], true) ?: [];
         $stageLabel = $stageLabels[$r['stage']] ?? strtoupper($r['stage']);
-        $lines .= "Client:   {$r['client_name']}\n";
-        $lines .= "Period:   {$r['period_label']}\n";
-        $lines .= "Stage:    {$stageLabel}\n";
-        if ($r['account_name'] !== null) {
-            $lines .= "Account:  {$r['account_name']}\n";
-        }
-        $lines .= "Uploaded by: {$r['uploaded_by']}\n";
-        $lines .= "Files (" . count($fileNames) . "):\n";
-        foreach ($fileNames as $fn) {
-            $lines .= "  - {$fn}\n";
-        }
-        $lines .= "\n";
+        $fileList = implode('<br>', array_map(fn($fn) => $h($fn), $fileNames));
+        $uploadTableRows .= "<tr>"
+            . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>{$h($r['client_name'])}</td>"
+            . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>{$h($r['period_label'])}</td>"
+            . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>{$h($stageLabel)}</td>"
+            . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>" . ($r['account_name'] !== null ? $h($r['account_name']) : '—') . "</td>"
+            . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>{$h($r['uploaded_by'])}</td>"
+            . "<td style='padding:8px 12px;border:1px solid #dee2e6;font-size:12px;'>{$fileList}</td>"
+            . "</tr>";
     }
 
-    $subject = "Daily Upload Summary - {$date}";
-    $body    = "Hello {$recipient['name']},\n\n"
-             . "The following uploads were completed today ({$date}) for your assigned clients:\n\n"
-             . $lines
-             . "Please review the dashboard for any required workflow actions.\n\n";
+    $thStyle = "padding:10px 12px;border:1px solid #dee2e6;background-color:#212529;color:#ffffff;text-align:left;font-size:13px;";
+    $uploadTable = "<table width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;font-size:13px;margin:15px 0;'>"
+        . "<thead><tr>"
+        . "<th style='{$thStyle}'>Client</th>"
+        . "<th style='{$thStyle}'>Period</th>"
+        . "<th style='{$thStyle}'>Stage</th>"
+        . "<th style='{$thStyle}'>Account</th>"
+        . "<th style='{$thStyle}'>Uploaded By</th>"
+        . "<th style='{$thStyle}'>Files</th>"
+        . "</tr></thead><tbody>{$uploadTableRows}</tbody></table>";
+
+    $innerHtml = "<p>Hello {$h($recipient['name'])},</p>"
+               . "<p>The following uploads were completed today ({$h($date)}) for your assigned clients:</p>"
+               . $uploadTable
+               . "<p>Please review the dashboard for any required workflow actions.</p>";
 
     // Append stage notes summary for notes belonging to the user's assigned clients
     // Cron runs at 00:10 AM, so look at previous day's notes
@@ -100,7 +110,7 @@ foreach ($allProcessors as $recipient) {
     $allNotes = StageNote::allNonEmpty($yesterdayStr);
     $relevantNotes = array_filter($allNotes, fn($n) => in_array((int)($n['client_id'] ?? 0), $assignedClientIds, true));
     if (!empty($relevantNotes)) {
-        $noteBlocks = '';
+        $noteTableRows = '';
         foreach ($relevantNotes as $n) {
             $entries = StageNote::parseEntries($n['note']);
             // Show only previous day's entries in the digest
@@ -108,24 +118,33 @@ foreach ($allProcessors as $recipient) {
             if (empty($yesterdayEntries)) continue;
 
             $sLabel = $stageLabelsAll[$n['stage_name']] ?? strtoupper($n['stage_name']);
-            $noteBlocks .= "Client:  {$n['client_name']}\n";
-            $noteBlocks .= "Period:  {$n['period_label']}\n";
-            $noteBlocks .= "Stage:   {$sLabel}\n";
-            if (!empty($n['account_name'])) {
-                $noteBlocks .= "Account: {$n['account_name']}\n";
-            }
-            foreach ($yesterdayEntries as $e) {
-                $noteBlocks .= "  [{$e['at']}] {$e['by']}: {$e['msg']}\n";
-            }
-            $noteBlocks .= "\n";
+            $noteLines = implode('<br>', array_map(fn($e) => "<span style='color:#6c757d;'>[{$h($e['at'])}]</span> <strong>{$h($e['by'])}</strong>: {$h($e['msg'])}", $yesterdayEntries));
+            $noteTableRows .= "<tr>"
+                . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>{$h($n['client_name'])}</td>"
+                . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>{$h($n['period_label'])}</td>"
+                . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>{$h($sLabel)}</td>"
+                . "<td style='padding:8px 12px;border:1px solid #dee2e6;'>" . (!empty($n['account_name']) ? $h($n['account_name']) : '—') . "</td>"
+                . "<td style='padding:8px 12px;border:1px solid #dee2e6;font-size:12px;'>{$noteLines}</td>"
+                . "</tr>";
         }
-        if ($noteBlocks !== '') {
-            $body .= str_repeat('-', 40) . "\nSTAGE NOTES SUMMARY\n" . str_repeat('-', 40) . "\n";
-            $body .= $noteBlocks;
+        if ($noteTableRows !== '') {
+            $nThStyle = "padding:10px 12px;border:1px solid #dee2e6;background-color:#212529;color:#ffffff;text-align:left;font-size:13px;";
+            $noteTable = "<table width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;font-size:13px;margin:15px 0;'>"
+                . "<thead><tr>"
+                . "<th style='{$nThStyle}'>Client</th>"
+                . "<th style='{$nThStyle}'>Period</th>"
+                . "<th style='{$nThStyle}'>Stage</th>"
+                . "<th style='{$nThStyle}'>Account</th>"
+                . "<th style='{$nThStyle}'>Notes</th>"
+                . "</tr></thead><tbody>{$noteTableRows}</tbody></table>";
+            $innerHtml .= "<hr style='border:none;border-top:1px solid #dee2e6;margin:20px 0;'>"
+                       . "<p><strong>STAGE NOTES SUMMARY</strong></p>"
+                       . $noteTable;
         }
     }
 
-    $body .= "Regards,\nWork Progress System";
+    $innerHtml .= "<p>Regards,<br>Work Progress System</p>";
+    $body = wrapEmailHtml($innerHtml);
 
     $mail = new PHPMailer\PHPMailer\PHPMailer(true);
     try {
@@ -146,6 +165,7 @@ foreach ($allProcessors as $recipient) {
         $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
         $mail->addCC('info@taxcheapo.com', 'TaxCheapo');
         $mail->addAddress($recipient['email'], $recipient['name']);
+        $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body    = $body;
         $mail->send();

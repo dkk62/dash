@@ -57,20 +57,23 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 function sendClientWelcomeEmail(string $name, string $email): void {
     $baseUrl  = 'https://dashboard.taxcheapo.com';
     $loginUrl = $baseUrl . '/?action=login';
-    $resetUrl = $baseUrl . '/?action=forgot_password';
+    $resetUrl = $baseUrl . '/?action=forgot_password&email=' . urlencode($email);
 
-    $subject = 'Welcome to Tax Cheapo – Client Portal Access';
-    $body    = "Hello {$name},\n\n"
-             . "Welcome to the Tax Cheapo Client Portal—your account has been successfully created.\n\n"
-             . "Login Email: {$email}\n\n"
-             . "To get started, please set your password using the link below:\n"
-             . "{$resetUrl}\n\n"
-             . "Once your password is set, you can log in here:\n"
-             . "{$loginUrl}\n\n"
-             . "After logging in, you'll be prompted to complete a short onboarding form. "
-             . "Please complete all sections so our team can begin working on your account without delay.\n\n"
-             . "If you have any questions, feel free to reply to this email or contact us at info@taxcheapo.com.\n\n"
-             . "Kind regards,\nTax Cheapo Team";
+    $subject = 'Welcome to Tax Cheapo - Client Portal Access';
+    $h = fn(string $s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    $safeResetUrl = $h($resetUrl);
+    $safeLoginUrl = $h($loginUrl);
+    $innerHtml = "<p>Hello {$h($name)},</p>"
+               . "<p>Welcome to the Tax Cheapo Client Portal - your account has been successfully created.</p>"
+               . "<p><strong>Login Email:</strong> {$h($email)}</p>"
+               . "<p>To get started, please set your password using the button below:</p>"
+               . "<p style='margin:20px 0;text-align:center;'><a href='{$safeResetUrl}' style='background-color:#0d6efd;color:#fff;padding:12px 28px;text-decoration:none;border-radius:5px;display:inline-block;font-weight:bold;'>Set Your Password</a></p>"
+               . "<p>Once your password is set, you can <a href='{$safeLoginUrl}'>log in here</a>.</p>"
+               . "<p>After logging in, you'll be prompted to complete a short onboarding form. "
+               . "Please complete all sections so our team can begin working on your account without delay.</p>"
+               . "<p>If you have any questions, feel free to reply to this email or contact us at <a href='mailto:info@taxcheapo.com'>info@taxcheapo.com</a>.</p>"
+               . "<p>Kind regards,<br>Tax Cheapo Team</p>";
+    $body = wrapEmailHtml($innerHtml);
 
     $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
     if (!file_exists($mailerPath)) {
@@ -99,6 +102,7 @@ function sendClientWelcomeEmail(string $name, string $email): void {
         $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
         $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
         $mail->addAddress($email, $name);
+        $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body    = $body;
         $mail->send();
@@ -116,15 +120,17 @@ function sendNewEntityEmail(string $entityName, string $email): void {
     $loginUrl = $baseUrl . '/?action=login';
 
     $subject = 'New Organization Added - TaxCheapo Client Portal';
-    $body    = "Hello,\n\n"
-             . "A new organization has been added to your TaxCheapo Client Portal account:\n\n"
-             . "Organization: {$entityName}\n\n"
-             . "Please log in and complete the onboarding form for this organization. "
-             . "You can switch between your entities on the onboarding page.\n\n"
-             . "Login here:\n"
-             . "{$loginUrl}\n\n"
-             . "If you have any questions, please reply to this email or contact us at info@taxcheapo.com.\n\n"
-             . "Regards,\nTaxCheapo Team";
+    $h = fn(string $s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    $safeLoginUrl = $h($loginUrl);
+    $innerHtml = "<p>Hello,</p>"
+               . "<p>A new organization has been added to your TaxCheapo Client Portal account:</p>"
+               . "<p><strong>Organization:</strong> {$h($entityName)}</p>"
+               . "<p>Please log in and complete the onboarding form for this organization. "
+               . "You can switch between your entities on the onboarding page.</p>"
+               . "<p style='margin:20px 0;text-align:center;'><a href='{$safeLoginUrl}' style='background-color:#0d6efd;color:#fff;padding:12px 28px;text-decoration:none;border-radius:5px;display:inline-block;font-weight:bold;'>Log In Now</a></p>"
+               . "<p>If you have any questions, please reply to this email or contact us at <a href='mailto:info@taxcheapo.com'>info@taxcheapo.com</a>.</p>"
+               . "<p>Regards,<br>TaxCheapo Team</p>";
+    $body = wrapEmailHtml($innerHtml);
 
     $mailerPath = BASE_PATH . '/vendor/PHPMailer/src/PHPMailer.php';
     if (!file_exists($mailerPath)) {
@@ -153,6 +159,7 @@ function sendNewEntityEmail(string $entityName, string $email): void {
         $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
         $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
         $mail->addAddress($email, $entityName);
+        $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body    = $body;
         $mail->send();

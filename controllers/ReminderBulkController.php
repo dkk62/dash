@@ -133,11 +133,12 @@ foreach ($emailTargets as $email => $target) {
     }
 
     $subject = 'Reminder: Pending bank statements - ' . date('m/d/Y');
-    $body    = "Dear Client,\n\n"
-             . "This is a reminder regarding pending bank statements for:\n\n"
-             . $sections
-             . "Please send us the required files at your earliest convenience.\n\n"
-             . "Regards,\nTaxCheapo Bookkeeping Work Progress System";
+    $innerHtml = "<p>Dear Client,</p>"
+               . "<p>This is a reminder regarding pending bank statements for:</p>"
+               . "<pre style='background:#f8f9fa;padding:15px;border-radius:5px;font-size:13px;'>" . htmlspecialchars($sections, ENT_QUOTES, 'UTF-8') . "</pre>"
+               . "<p>Please send us the required files at your earliest convenience.</p>"
+               . "<p>Regards,<br>TaxCheapo Bookkeeping Work Progress System</p>";
+    $body = wrapEmailHtml($innerHtml);
 
     $emailSent = false;
 
@@ -161,6 +162,7 @@ foreach ($emailTargets as $email => $target) {
             $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
             $mail->addReplyTo('info@taxcheapo.com', SMTP_FROM_NAME);
             $mail->addAddress($email);
+            $mail->isHTML(true);
             $mail->Subject = $subject;
             $mail->Body    = $body;
             $mail->send();
