@@ -35,12 +35,8 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $defaultPassword = 'Password#2026';
             $newClientId = Client::create($name, $email, $phone, $cycleType, $defaultPassword, $processor0Id, $processor1Id);
 
-            // Send appropriate welcome email
-            if ($isExistingEmail) {
-                sendNewEntityEmail($name, $email);
-            } else {
-                sendClientWelcomeEmail($name, $email);
-            }
+            // Send full welcome email
+            sendClientWelcomeEmail($name, $email);
 
             setFlash('success', 'Client created and welcome email sent.');
             redirect('?action=clients');
@@ -175,12 +171,7 @@ if ($action === 'client_resend_welcome' && $_SERVER['REQUEST_METHOD'] === 'POST'
     if ($id > 0) {
         $client = Client::find($id);
         if ($client) {
-            $hasOtherClients = Client::emailExists($client['email'], $id);
-            if ($hasOtherClients) {
-                sendNewEntityEmail($client['name'], $client['email']);
-            } else {
-                sendClientWelcomeEmail($client['name'], $client['email']);
-            }
+            sendClientWelcomeEmail($client['name'], $client['email']);
             setFlash('success', 'Welcome email sent to ' . $client['email'] . '.');
         }
     }
