@@ -105,6 +105,12 @@ class FileRecord {
         return $stmt->fetch() ?: null;
     }
 
+    public static function deleteById(int $id): void {
+        $db = getDB();
+        $stmt = $db->prepare("DELETE FROM files WHERE id = ?");
+        $stmt->execute([$id]);
+    }
+
     public static function getFirst(int $periodId, string $stage, ?int $accountId = null): ?array {
         $db = getDB();
         if ($stage === 'stage1' && $accountId !== null) {

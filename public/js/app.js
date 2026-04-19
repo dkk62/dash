@@ -310,6 +310,25 @@ document.addEventListener('DOMContentLoaded', function () {
         var bsStageFilesModal = new bootstrap.Modal(stageFilesModal);
         var stageLabelsFiles = { stage1: 'Stage 1', stage2: 'Stage 2', stage3: 'Stage 3', stage4: 'Stage 4' };
 
+        // Track current modal context for delete/upload
+        var sfCurrentPeriodId = '';
+        var sfCurrentStage = '';
+        var sfCurrentAccountId = '';
+
+        // Determine upload permission based on role + stage
+        var userRoleMeta = document.querySelector('meta[name="user-role"]');
+        var userRole = userRoleMeta ? userRoleMeta.getAttribute('content') : '';
+        var stageUploadRoles = {
+            stage1: ['processor0', 'admin', 'client'],
+            stage2: ['processor1', 'admin'],
+            stage3: ['processor0', 'admin'],
+            stage4: ['processor1', 'admin']
+        };
+        function canUploadToStage(stage) {
+            var roles = stageUploadRoles[stage] || ['admin'];
+            return roles.indexOf(userRole) !== -1;
+        }
+
         function formatFileSize(bytes) {
             if (!bytes || bytes === 0) return '0 B';
             var units = ['B', 'KB', 'MB', 'GB'];
@@ -322,35 +341,17 @@ document.addEventListener('DOMContentLoaded', function () {
             return (i === 0 ? size : size.toFixed(1)) + ' ' + units[i];
         }
 
-        document.addEventListener('click', function (e) {
-            var led = e.target.closest('[data-led-clickable]');
-            if (!led) return;
-
-            var periodId    = led.getAttribute('data-period-id');
-            var stage       = led.getAttribute('data-stage');
-            var accountId   = led.getAttribute('data-account-id') || '';
-            var clientName  = led.getAttribute('data-client-name') || '';
-            var periodLabel = led.getAttribute('data-period-label') || '';
-            var accountName = led.getAttribute('data-account-name') || '';
-
-            var metaEl = document.getElementById('stageFilesMeta');
-            var line1 = clientName;
-            var line2 = (stageLabelsFiles[stage] || stage) + '  \u00b7  ' + periodLabel;
-            if (stage === 'stage1' && accountName) {
-                line2 += '  \u00b7  ' + accountName;
-            }
-            metaEl.innerHTML = '<strong>' + escapeHtml(line1) + '</strong><br>' + escapeHtml(line2);
+        function loadStageFiles() {
             document.getElementById('stageFilesLoading').style.display = '';
             document.getElementById('stageFilesEmpty').style.display = 'none';
             document.getElementById('stageFilesTableWrap').style.display = 'none';
             document.getElementById('stageFilesBody').innerHTML = '';
-            bsStageFilesModal.show();
 
             var url = window.location.href.split('?')[0]
-                + '?action=stage_files&period_id=' + encodeURIComponent(periodId)
-                + '&stage=' + encodeURIComponent(stage);
-            if (accountId) {
-                url += '&account_id=' + encodeURIComponent(accountId);
+                + '?action=stage_files&period_id=' + encodeURIComponent(sfCurrentPeriodId)
+                + '&stage=' + encodeURIComponent(sfCurrentStage);
+            if (sfCurrentAccountId) {
+                url += '&account_id=' + encodeURIComponent(sfCurrentAccountId);
             }
 
             var xhr = new XMLHttpRequest();
@@ -376,7 +377,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             viewBtn = '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + escapeHtml(previewUrl) + '" data-preview-name="' + escapeHtml(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
                         }
                     }
+                    var deleteBtn = '<button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.7rem;" data-delete-file-id="' + f.file_id + '" data-delete-file-name="' + escapeHtml(f.original_filename) + '" title="Delete"><i class="bi bi-trash"></i></button>';
                     html += '<tr>'
+                        + '<td class="text-center">' + deleteBtn + '</td>'
                         + '<td>' + (i + 1) + '</td>'
                         + '<td class="text-break">' + escapeHtml(f.original_filename) + '</td>'
                         + '<td class="text-nowrap">' + uploadDate + '</td>'
@@ -393,7 +396,143 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('stageFilesEmpty').style.display = '';
             });
             xhr.send();
+        }
+
+        document.addEventListener('click', function (e) {
+            var led = e.target.closest('[data-led-clickable]');
+            if (!led) return;
+
+            sfCurrentPeriodId  = led.getAttribute('data-period-id');
+            sfCurrentStage     = led.getAttribute('data-stage');
+            sfCurrentAccountId = led.getAttribute('data-account-id') || '';
+            var clientName  = led.getAttribute('data-client-name') || '';
+            var periodLabel = led.getAttribute('data-period-label') || '';
+            var accountName = led.getAttribute('data-account-name') || '';
+
+            var metaEl = document.getElementById('stageFilesMeta');
+            var line1 = clientName;
+            var line2 = (stageLabelsFiles[sfCurrentStage] || sfCurrentStage) + '  \u00b7  ' + periodLabel;
+            if (sfCurrentStage === 'stage1' && accountName) {
+                line2 += '  \u00b7  ' + accountName;
+            }
+            metaEl.innerHTML = '<strong>' + escapeHtml(line1) + '</strong><br>' + escapeHtml(line2);
+
+            // Reset upload input
+            document.getElementById('stageFilesUploadInput').value = '';
+            document.getElementById('stageFilesUploadStatus').textContent = '';
+
+            bsStageFilesModal.show();
+            loadStageFiles();
         });
+
+        // ---- Delete file handler ----
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-delete-file-id]');
+            if (!btn) return;
+            e.preventDefault();
+
+            var fileId   = btn.getAttribute('data-delete-file-id');
+            var fileName = btn.getAttribute('data-delete-file-name');
+            if (!confirm('Delete "' + fileName + '"?')) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:0.6rem;height:0.6rem;"></span>';
+
+            var formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+            formData.append('file_id', fileId);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', window.location.href.split('?')[0] + '?action=delete_file', true);
+            xhr.addEventListener('load', function () {
+                var resp = parseJsonResponse(xhr.responseText);
+                if (resp && resp.success) {
+                    // Update the note button's data-note so the chat modal reflects the deletion comment
+                    if (resp.updated_note) {
+                        var noteAccountId = resp.note_account_id || '0';
+                        var noteBtn = document.querySelector('.note-btn[data-period-id="' + sfCurrentPeriodId + '"][data-stage="' + sfCurrentStage + '"][data-account-id="' + noteAccountId + '"]');
+                        if (noteBtn) {
+                            noteBtn.setAttribute('data-note', resp.updated_note);
+                            noteBtn.classList.add('note-has-content');
+                            noteBtn.title = 'View Notes';
+                        }
+                    }
+                    loadStageFiles();
+
+                    // If no files remain, reset LED to grey
+                    if (resp.files_remaining === 0) {
+                        var ledSelector = '[data-led][data-period-id="' + sfCurrentPeriodId + '"][data-stage="' + sfCurrentStage + '"]';
+                        if (sfCurrentAccountId) {
+                            ledSelector += '[data-account-id="' + sfCurrentAccountId + '"]';
+                        }
+                        var ledEl = document.querySelector(ledSelector);
+                        if (ledEl) {
+                            ledEl.className = ledEl.className.replace(/led-(green|orange|grey)/g, 'led-grey');
+                            ledEl.removeAttribute('data-led-clickable');
+                            ledEl.setAttribute('title', 'Grey');
+                            ledEl.style.cursor = 'default';
+                        }
+                    }
+                } else {
+                    alert((resp && resp.message) || 'Delete failed.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-trash"></i>';
+                }
+            });
+            xhr.addEventListener('error', function () {
+                alert('Network error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash"></i>';
+            });
+            xhr.send(formData);
+        });
+
+        // ---- Upload single file handler ----
+        var uploadInput = document.getElementById('stageFilesUploadInput');
+        var uploadStatus = document.getElementById('stageFilesUploadStatus');
+        uploadInput.addEventListener('change', function () {
+            if (!uploadInput.files || !uploadInput.files.length) return;
+
+            var file = uploadInput.files[0];
+            uploadStatus.innerHTML = '<span class="text-muted"><span class="spinner-border spinner-border-sm" style="width:0.6rem;height:0.6rem;"></span> Uploading...</span>';
+
+            var formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+            formData.append('period_id', sfCurrentPeriodId);
+            formData.append('stage', sfCurrentStage);
+            if (sfCurrentAccountId) {
+                formData.append('account_id', sfCurrentAccountId);
+            }
+            formData.append('file', file);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', window.location.href.split('?')[0] + '?action=upload_single', true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.addEventListener('load', function () {
+                var resp = parseJsonResponse(xhr.responseText);
+                if (resp && resp.success) {
+                    uploadStatus.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Uploaded</span>';
+                    loadStageFiles();
+                } else {
+                    uploadStatus.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> ' + escapeHtml((resp && resp.message) || 'Upload failed.') + '</span>';
+                }
+                uploadInput.value = '';
+            });
+            xhr.addEventListener('error', function () {
+                uploadStatus.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> Network error.</span>';
+                uploadInput.value = '';
+            });
+            xhr.send(formData);
+        });
+
+        // Extract JSON from response text, tolerating stray PHP output before/after
+        function parseJsonResponse(text) {
+            if (!text) return null;
+            try { return JSON.parse(text); } catch (e) {}
+            var m = text.match(/\{[\s\S]*\}/);
+            if (m) { try { return JSON.parse(m[0]); } catch (e2) {} }
+            return null;
+        }
 
         function escapeHtml(str) {
             var div = document.createElement('div');
@@ -410,6 +549,15 @@ document.addEventListener('DOMContentLoaded', function () {
             var previewBody = document.getElementById('filePreviewBody');
             var previewLoading = document.getElementById('filePreviewLoading');
 
+            // Clean up preview content and restore stageFilesModal on close
+            previewModal.addEventListener('hidden.bs.modal', function () {
+                previewBody.innerHTML = '';
+                if (stageFilesModal && stageFilesModal.classList.contains('was-open')) {
+                    stageFilesModal.classList.remove('was-open');
+                    bsStageFilesModal.show();
+                }
+            });
+
             // Click handler for view buttons inside stage files table
             document.addEventListener('click', function (e) {
                 var btn = e.target.closest('[data-preview-url]');
@@ -424,7 +572,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 previewBody.innerHTML = '';
                 previewLoading.style.display = '';
 
-                bsPreviewModal.show();
+                // Hide stage files modal first to avoid stacking issues
+                if (stageFilesModal && stageFilesModal.classList.contains('show')) {
+                    stageFilesModal.classList.add('was-open');
+                    bsStageFilesModal.hide();
+                    stageFilesModal.addEventListener('hidden.bs.modal', function onHidden() {
+                        stageFilesModal.removeEventListener('hidden.bs.modal', onHidden);
+                        bsPreviewModal.show();
+                    });
+                } else {
+                    bsPreviewModal.show();
+                }
 
                 if (ext === 'pdf') {
                     var iframe = document.createElement('iframe');

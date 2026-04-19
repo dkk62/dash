@@ -6,13 +6,17 @@ class StageNote {
      * Notes are stored as a JSON array: [{"by":"Name","at":"datetime","msg":"text"}, ...]
      * Legacy plain-text notes are migrated into the JSON format automatically.
      */
-    public static function append(int $periodId, string $stage, int $accountId, string $message, int $userId): array {
+    public static function append(int $periodId, string $stage, int $accountId, string $message, int $userId, ?string $byName = null): array {
         $db = getDB();
-        $userName = '';
-        $uStmt = $db->prepare("SELECT name FROM users WHERE id=?");
-        $uStmt->execute([$userId]);
-        $row = $uStmt->fetch();
-        if ($row) $userName = $row['name'];
+        if ($byName === null) {
+            $userName = '';
+            $uStmt = $db->prepare("SELECT name FROM users WHERE id=?");
+            $uStmt->execute([$userId]);
+            $row = $uStmt->fetch();
+            if ($row) $userName = $row['name'];
+        } else {
+            $userName = $byName;
+        }
 
         // Load existing note
         $stmt = $db->prepare(

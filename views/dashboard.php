@@ -375,6 +375,7 @@ ob_start();
           <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem;">
             <thead class="table-light">
               <tr>
+                <th style="width:30px;"></th>
                 <th>#</th>
                 <th>File Name</th>
                 <th>Uploaded</th>
@@ -386,7 +387,14 @@ ob_start();
           </table>
         </div>
       </div>
-      <div class="modal-footer py-2">
+      <div class="modal-footer py-2 justify-content-between">
+        <div>
+          <label class="btn btn-outline-primary btn-sm mb-0" id="stageFilesUploadLabel" style="cursor:pointer;">
+            <i class="bi bi-upload"></i> Upload File
+            <input type="file" id="stageFilesUploadInput" class="d-none">
+          </label>
+          <span id="stageFilesUploadStatus" class="ms-2 small"></span>
+        </div>
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
       </div>
     </div>

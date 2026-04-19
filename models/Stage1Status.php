@@ -33,6 +33,12 @@ class Stage1Status {
         $stmt->execute([$periodId, $accountId]);
     }
 
+    public static function resetToGrey(int $periodId, int $accountId): void {
+        $db = getDB();
+        $stmt = $db->prepare("UPDATE stage1_status SET status='grey', last_upload_at=NULL, last_download_at=NULL WHERE period_id=? AND account_id=?");
+        $stmt->execute([$periodId, $accountId]);
+    }
+
     public static function allGrey(int $periodId): bool {
         $db = getDB();
         $stmt = $db->prepare("SELECT COUNT(*) FROM stage1_status WHERE period_id = ? AND status != 'grey'");

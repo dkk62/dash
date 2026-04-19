@@ -7,6 +7,7 @@ require_once BASE_PATH . '/models/StageStatus.php';
 require_once BASE_PATH . '/models/FileRecord.php';
 require_once BASE_PATH . '/models/User.php';
 require_once BASE_PATH . '/models/NotificationQueue.php';
+require_once BASE_PATH . '/models/StageNote.php';
 
 function uploadNotifyTargetRole(string $stage): ?string {
     return match ($stage) {
@@ -510,6 +511,232 @@ if ($action === 'preview_file') {
     header('Content-Length: ' . filesize($fullPath));
     header('X-Content-Type-Options: nosniff');
     readfile($fullPath);
+    exit;
+}
+
+// ---- DELETE SINGLE FILE (AJAX) ----
+if ($action === 'delete_file' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_reporting(0);
+    @ini_set('display_errors', '0');
+    header('Content-Type: application/json');
+
+    try {
+        if (!verifyCsrf()) {
+            echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
+            exit;
+        }
+
+        $fileId = (int) ($_POST['file_id'] ?? 0);
+        if ($fileId <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Invalid file ID.']);
+            exit;
+        }
+
+        $fileRecord = FileRecord::findById($fileId);
+        if (!$fileRecord) {
+            echo json_encode(['success' => false, 'message' => 'File not found.']);
+            exit;
+        }
+
+        $stage     = $fileRecord['stage_name'];
+        $periodId  = (int) $fileRecord['period_id'];
+        $accountId = $fileRecord['account_id'] ? (int) $fileRecord['account_id'] : null;
+        $period    = null;
+
+        // Client ownership check
+        if (currentRole() === 'client') {
+            $period = Period::find($periodId);
+            $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+            if (!$period || !in_array((int) $period['client_id'], $allowedClientIds, true)) {
+                echo json_encode(['success' => false, 'message' => 'This period does not belong to your account.']);
+                exit;
+            }
+        }
+
+        // Check locked
+        if (!$period) { $period = Period::find($periodId); }
+        if ($period && $period['is_locked']) {
+            echo json_encode(['success' => false, 'message' => 'This period is locked. Deletions are disabled.']);
+            exit;
+        }
+
+        // Delete from disk
+        $fullPath = UPLOAD_PATH . '/' . $fileRecord['file_path'];
+        if (file_exists($fullPath) && is_file($fullPath)) {
+            @unlink($fullPath);
+        }
+
+        // Delete from DB
+        FileRecord::deleteById($fileId);
+
+        // Log the deletion
+        $userId = (int) $_SESSION['user_id'];
+        logAction('file_delete', $userId, $periodId, $stage, $accountId, [
+            'file_id'  => $fileId,
+            'filename' => $fileRecord['original_filename'],
+        ]);
+
+        // Check if any files remain in this stage; if not, reset LED to grey
+        $remainingFiles = FileRecord::forStage($periodId, $stage, $accountId);
+        $filesRemaining = count($remainingFiles);
+        if ($filesRemaining === 0) {
+            if ($stage === 'stage1' && $accountId) {
+                Stage1Status::resetToGrey($periodId, $accountId);
+            } else {
+                StageStatus::resetToGrey($periodId, $stage);
+            }
+        }
+
+        // Record deletion in stage notes/comments (inline, no dependency on StageNote method signature)
+        $noteAccountId = (int) ($accountId ?? 0);
+        $updatedNote = '[]';
+        try {
+            $db = getDB();
+            $deleter = User::findById($userId);
+            $deleterName = $deleter ? $deleter['name'] : ('User #' . $userId);
+            $noteMsg = 'Deleted file: ' . $fileRecord['original_filename'] . ' by ' . $deleterName . ' on ' . date('m/d/Y h:i A');
+
+            // Load existing note
+            $stmt = $db->prepare("SELECT note FROM stage_notes WHERE period_id=? AND stage_name=? AND account_id=?");
+            $stmt->execute([$periodId, $stage, $noteAccountId]);
+            $existing = $stmt->fetchColumn();
+
+            $entries = [];
+            if ($existing) {
+                $decoded = json_decode($existing, true);
+                if (is_array($decoded)) {
+                    $entries = $decoded;
+                } elseif (trim($existing) !== '') {
+                    $entries = [['by' => 'System', 'at' => '', 'msg' => $existing]];
+                }
+            }
+
+            $entries[] = ['by' => 'System', 'at' => date('Y-m-d H:i'), 'msg' => $noteMsg];
+            $json = json_encode($entries, JSON_UNESCAPED_UNICODE);
+
+            $save = $db->prepare(
+                "INSERT INTO stage_notes (period_id, stage_name, account_id, note, updated_by, updated_at)
+                 VALUES (?, ?, ?, ?, ?, NOW())
+                 ON DUPLICATE KEY UPDATE note=VALUES(note), updated_by=VALUES(updated_by), updated_at=NOW()"
+            );
+            $save->execute([$periodId, $stage, $noteAccountId, $json, $userId]);
+
+            // Fetch updated notes
+            $stmt2 = $db->prepare("SELECT note FROM stage_notes WHERE period_id=? AND stage_name=? AND account_id=?");
+            $stmt2->execute([$periodId, $stage, $noteAccountId]);
+            $updatedNote = $stmt2->fetchColumn() ?: '[]';
+        } catch (\Throwable $noteErr) {
+            error_log('delete_file note error: ' . $noteErr->getMessage());
+        }
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'File deleted.',
+            'updated_note' => $updatedNote,
+            'note_account_id' => $noteAccountId,
+            'files_remaining' => $filesRemaining,
+        ]);
+    } catch (\Throwable $e) {
+        error_log('delete_file error: ' . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+// ---- UPLOAD SINGLE FILE (AJAX, appends to existing) ----
+if ($action === 'upload_single' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_reporting(0);
+    @ini_set('display_errors', '0');
+    header('Content-Type: application/json');
+
+    try {
+        if (!verifyCsrf()) {
+            echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
+            exit;
+        }
+
+        $periodId  = (int) ($_POST['period_id'] ?? 0);
+        $stage     = $_POST['stage'] ?? '';
+        $accountId = !empty($_POST['account_id']) ? (int) $_POST['account_id'] : null;
+
+        if (!in_array($stage, ['stage1', 'stage2', 'stage3', 'stage4'])) {
+            echo json_encode(['success' => false, 'message' => 'Invalid stage.']);
+            exit;
+        }
+
+        if (!hasRole(stageUploadRoles($stage))) {
+            echo json_encode(['success' => false, 'message' => 'You do not have permission to upload to this stage.']);
+            exit;
+        }
+
+        if (currentRole() === 'client' && $stage !== 'stage1') {
+            echo json_encode(['success' => false, 'message' => 'Clients can only upload to Stage 1.']);
+            exit;
+        }
+
+        if ($stage === 'stage1' && !$accountId) {
+            echo json_encode(['success' => false, 'message' => 'Account is required for Stage 1.']);
+            exit;
+        }
+
+        $period = Period::find($periodId);
+        if (!$period) {
+            echo json_encode(['success' => false, 'message' => 'Period not found.']);
+            exit;
+        }
+
+        if (currentRole() === 'client') {
+            $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+            if (!in_array((int) $period['client_id'], $allowedClientIds, true)) {
+                echo json_encode(['success' => false, 'message' => 'This period does not belong to your account.']);
+                exit;
+            }
+        }
+
+        if ($period['is_locked']) {
+            echo json_encode(['success' => false, 'message' => 'This period is locked. Uploads are disabled.']);
+            exit;
+        }
+
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'message' => 'Please select a valid file.']);
+            exit;
+        }
+
+        $clientId = $period['client_id'];
+        $userId   = $_SESSION['user_id'];
+        $dir      = stagePath($clientId, $periodId, $stage, $accountId);
+        ensureDir($dir);
+
+        $origName = $_FILES['file']['name'];
+        $tmpName  = $_FILES['file']['tmp_name'];
+        $safeName = sanitizeFilename($origName);
+        $destPath = $dir . '/' . $safeName;
+
+        if (!move_uploaded_file($tmpName, $destPath)) {
+            echo json_encode(['success' => false, 'message' => 'Failed to save file.']);
+            exit;
+        }
+
+        $relativePath = str_replace(UPLOAD_PATH . '/', '', $destPath);
+        FileRecord::create($periodId, $stage, $accountId, $relativePath, $origName, $userId);
+
+        // Ensure LED is green
+        if ($stage === 'stage1') {
+            Stage1Status::setGreen($periodId, $accountId);
+        } else {
+            StageStatus::setGreen($periodId, $stage);
+        }
+
+        logAction('upload_single', $userId, $periodId, $stage, $accountId, [
+            'filename' => $origName,
+        ]);
+
+        echo json_encode(['success' => true, 'message' => 'File uploaded successfully.']);
+    } catch (\Throwable $e) {
+        error_log('upload_single error: ' . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+    }
     exit;
 }
 

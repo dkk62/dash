@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS `logs` (
   `period_id` INT(11) DEFAULT NULL,
   `stage_name` VARCHAR(10) DEFAULT NULL,
   `account_id` INT(11) DEFAULT NULL,
-  `action` ENUM('upload','download','reupload','reminder_sent','period_locked','period_unlocked','login') NOT NULL,
+  `action` ENUM('upload','download','reupload','reminder_sent','period_locked','period_unlocked','login','file_delete','upload_single') NOT NULL,
   `user_id` INT(11) DEFAULT NULL,
   `client_id` INT(11) DEFAULT NULL,
   `ip_address` VARCHAR(45) DEFAULT NULL,

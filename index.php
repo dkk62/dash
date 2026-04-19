@@ -124,6 +124,12 @@ switch ($action) {
     case 'preview_file':
         require_once BASE_PATH . '/controllers/StageController.php';
         break;
+    case 'delete_file':
+        require_once BASE_PATH . '/controllers/StageController.php';
+        break;
+    case 'upload_single':
+        require_once BASE_PATH . '/controllers/StageController.php';
+        break;
 
     // Reminder
     case 'reminder_bulk':
