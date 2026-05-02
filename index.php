@@ -170,6 +170,8 @@ switch ($action) {
     case 'doc_download':
     case 'doc_download_stream':
     case 'doc_preview':
+    case 'doc_dates':
+    case 'doc_date_files':
         require_once BASE_PATH . '/controllers/DocumentController.php';
         break;
 

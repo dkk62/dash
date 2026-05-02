@@ -1,30 +1,68 @@
 <?php
 require_once BASE_PATH . '/models/Client.php';
 require_once BASE_PATH . '/models/ClientDocument.php';
+require_once BASE_PATH . '/models/OnboardingForm.php';
 
 // ---- DOCUMENTS LISTING PAGE ----
 if ($action === 'documents') {
     $clients = Client::allActive();
+    $clientEntities   = [];
+    $selectedClientId = 0;
+    $selectedClientName = '';
+    $dateRows      = [];
+    $todayHasFiles = false;
+    $clientData    = [];
 
     // Filter by role
     if (currentRole() === 'client') {
         $allowedClientIds = array_map('intval', (array) ($_SESSION['client_ids'] ?? []));
         $clients = array_values(array_filter($clients, fn($c) => in_array((int) $c['id'], $allowedClientIds, true)));
+
+        foreach ($clients as $client) {
+            $onboarding = OnboardingForm::findByClientId((int) $client['id']);
+            $clientEntities[] = [
+                'id' => (int) $client['id'],
+                'name' => $client['name'],
+                'status' => $onboarding['status'] ?? 'new',
+            ];
+        }
+
+        if (!empty($clientEntities)) {
+            $allowedEntityIds = array_map(fn($entity) => (int) $entity['id'], $clientEntities);
+            $requestedClientId = (int) ($_GET['client_id'] ?? 0);
+            $selectedClientId = in_array($requestedClientId, $allowedEntityIds, true)
+                ? $requestedClientId
+                : (int) $clientEntities[0]['id'];
+
+            $clients = array_values(array_filter($clients, fn($c) => (int) $c['id'] === $selectedClientId));
+        }
+
+        foreach ($clients as $c) {
+            if ((int) $c['id'] === $selectedClientId) {
+                $selectedClientName = $c['name'];
+                break;
+            }
+        }
+        $dateRows      = ClientDocument::forClientGroupedByDate($selectedClientId);
+        $todayHasFiles = !empty($dateRows) && $dateRows[0]['upload_date'] === date('Y-m-d');
+
     } elseif (in_array(currentRole(), ['processor0', 'processor1'])) {
         $assignedClientIds = Client::getClientIdsForUser((int) $_SESSION['user_id']);
         $clients = array_values(array_filter($clients, fn($c) => in_array((int) $c['id'], $assignedClientIds, true)));
     }
 
-    $allClientIds = array_map(fn($c) => (int) $c['id'], $clients);
-    $docStatus = ClientDocument::bulkHasFiles($allClientIds);
-
-    $clientData = [];
-    foreach ($clients as $client) {
-        $cid = (int) $client['id'];
-        $clientData[] = [
-            'client'      => $client,
-            'hasDocFiles' => isset($docStatus[$cid]),
-        ];
+    if (currentRole() !== 'client') {
+        $allClientIds = array_map(fn($c) => (int) $c['id'], $clients);
+        $docCounts    = ClientDocument::bulkCountsForClients($allClientIds);
+        $clientData   = [];
+        foreach ($clients as $client) {
+            $cid = (int) $client['id'];
+            $clientData[] = [
+                'client'        => $client,
+                'totalFiles'    => $docCounts[$cid]['total'] ?? 0,
+                'newFiles'      => $docCounts[$cid]['not_downloaded'] ?? 0,
+            ];
+        }
     }
 
     include BASE_PATH . '/views/documents.php';
@@ -34,8 +72,13 @@ if ($action === 'documents') {
 // ---- UPLOAD DOCUMENT ----
 if ($action === 'doc_upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $isAjax = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest';
+    $redirectUrl = '?action=documents';
+    $redirectClientId = (int) ($_POST['client_id'] ?? 0);
+    if ($redirectClientId > 0) {
+        $redirectUrl .= '&client_id=' . $redirectClientId;
+    }
 
-    $fail = function (string $message, int $statusCode = 400) use ($isAjax): void {
+    $fail = function (string $message, int $statusCode = 400) use ($isAjax, $redirectUrl): void {
         if ($isAjax) {
             http_response_code($statusCode);
             header('Content-Type: application/json');
@@ -43,7 +86,7 @@ if ($action === 'doc_upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         setFlash('danger', $message);
-        redirect('?action=documents');
+        redirect($redirectUrl);
     };
 
     // Detect PHP post_max_size exceeded
@@ -59,14 +102,14 @@ if ($action === 'doc_upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $fail('Session expired or invalid token. Please reload the page and try again.', 403);
     }
 
-    $success = function (string $message) use ($isAjax): void {
+    $success = function (string $message) use ($isAjax, $redirectUrl): void {
         if ($isAjax) {
             header('Content-Type: application/json');
             echo json_encode(['success' => true, 'message' => $message]);
             exit;
         }
         setFlash('success', $message);
-        redirect('?action=documents');
+        redirect($redirectUrl);
     };
 
     $clientId = (int) ($_POST['client_id'] ?? 0);
@@ -210,6 +253,7 @@ if ($action === 'doc_download' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $records = array_filter($records, fn($r) => (int) $r['client_id'] === $clientId);
 
     $existingFiles = [];
+    $downloadedIds = [];
     foreach ($records as $r) {
         $fullPath = UPLOAD_PATH . '/' . $r['file_path'];
         if (file_exists($fullPath) && is_file($fullPath)) {
@@ -217,6 +261,7 @@ if ($action === 'doc_download' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 'full_path' => $fullPath,
                 'name' => $r['original_filename'],
             ];
+            $downloadedIds[] = (int) $r['id'];
         }
     }
 
@@ -229,9 +274,10 @@ if ($action === 'doc_download' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // Build a download token so the actual file streaming happens via GET
     $token = bin2hex(random_bytes(16));
     $_SESSION['doc_download_' . $token] = [
-        'files' => $existingFiles,
-        'client' => $client,
-        'expires' => time() + 120,
+        'files'          => $existingFiles,
+        'file_ids'       => $downloadedIds,
+        'client'         => $client,
+        'expires'        => time() + 120,
     ];
 
     echo json_encode(['success' => true, 'token' => $token]);
@@ -259,6 +305,11 @@ if ($action === 'doc_download_stream') {
     $existingFiles = $data['files'];
     $client = $data['client'];
     $clientSafe = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $client['name'] ?? ('client_' . ($client['id'] ?? 0)));
+
+    // Mark files as downloaded
+    if (!empty($data['file_ids'])) {
+        ClientDocument::markDownloaded($data['file_ids']);
+    }
 
     if (count($existingFiles) === 1) {
         $singleFile = $existingFiles[0];
@@ -384,5 +435,47 @@ if ($action === 'doc_preview') {
     header('Content-Length: ' . filesize($fullPath));
     header('X-Content-Type-Options: nosniff');
     readfile($fullPath);
+    exit;
+}
+
+// ---- DATE-GROUPED LIST FOR A CLIENT (AJAX, used by admin modal) ----
+if ($action === 'doc_dates') {
+    header('Content-Type: application/json');
+    $clientId = (int) ($_GET['client_id'] ?? 0);
+    if (!$clientId) { echo json_encode(['dates' => []]); exit; }
+
+    if (currentRole() === 'client') {
+        $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+        if (!in_array($clientId, $allowedClientIds, true)) {
+            http_response_code(403);
+            echo json_encode(['dates' => []]);
+            exit;
+        }
+    }
+
+    echo json_encode(['dates' => ClientDocument::forClientGroupedByDate($clientId)]);
+    exit;
+}
+
+// ---- FILES FOR A SPECIFIC CLIENT + DATE (AJAX) ----
+if ($action === 'doc_date_files') {
+    header('Content-Type: application/json');
+    $clientId = (int) ($_GET['client_id'] ?? 0);
+    $date     = $_GET['date'] ?? '';
+    if (!$clientId || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        echo json_encode(['files' => []]);
+        exit;
+    }
+
+    if (currentRole() === 'client') {
+        $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+        if (!in_array($clientId, $allowedClientIds, true)) {
+            http_response_code(403);
+            echo json_encode(['files' => []]);
+            exit;
+        }
+    }
+
+    echo json_encode(['files' => ClientDocument::forClientOnDate($clientId, $date)]);
     exit;
 }

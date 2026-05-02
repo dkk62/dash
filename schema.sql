@@ -253,9 +253,11 @@ CREATE TABLE IF NOT EXISTS `client_documents` (
   `uploaded_by` INT(11) NOT NULL,
   `uploaded_by_type` ENUM('user','client') NOT NULL DEFAULT 'user',
   `uploaded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `downloaded_at` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_cd_client` (`client_id`),
   KEY `idx_cd_uploaded_by` (`uploaded_by`),
+  KEY `idx_cd_client_uploaded` (`client_id`, `uploaded_at`),
   CONSTRAINT `cd_ibfk_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

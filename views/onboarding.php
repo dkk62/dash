@@ -68,7 +68,7 @@ ob_start();
 
 <?php if ($isClient && $isEdit): ?>
 <div class="alert alert-info small mb-3">
-    <i class="bi bi-exclamation-triangle text-warning"></i> <strong>Editing mode:</strong> File uploads are disabled. Please upload new or updated documents via the <a href="<?= e(appUrl('?action=documents')) ?>">Documents</a> section.
+    <i class="bi bi-exclamation-triangle text-warning"></i> <strong>Editing mode:</strong> File uploads are disabled. Please upload new or updated documents via the <a href="<?= e(appUrl('?action=documents&client_id=' . (int)$client['id'])) ?>">Documents</a> section.
 </div>
 <?php elseif ($isClient && $isNew): ?>
 <div class="alert alert-info small mb-3">
@@ -590,7 +590,7 @@ ob_start();
     <!-- Staged files list -->
     <h6 class="mt-3"><i class="bi bi-folder2-open"></i> Staged Files (will be dispatched on submit)</h6>
     <?php if ($isEdit && $isClient): ?>
-    <div class="alert alert-info small"><i class="bi bi-info-circle"></i> Upload new or updated documents via the <a href="<?= e(appUrl('?action=documents')) ?>">Documents</a> section.</div>
+    <div class="alert alert-info small"><i class="bi bi-info-circle"></i> Upload new or updated documents via the <a href="<?= e(appUrl('?action=documents&client_id=' . (int)$client['id'])) ?>">Documents</a> section.</div>
     <?php endif; ?>
     <div id="onbStagedFilesArea">
         <div class="text-muted small" id="onbNoFiles" <?= empty($stagedFiles) ? '' : 'style="display:none"' ?>>No files staged yet.</div>

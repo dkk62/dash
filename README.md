@@ -2,6 +2,8 @@
 
 A role-based workflow system for managing client file processing across four stages (`stage1` to `stage4`) with status LEDs, bulk reminders, period locking, and activity logs.
 
+Also includes a **Documents** module for client-uploaded general documents, with date-grouped storage, download tracking, and a "Not Downloaded" counter for admin/processor views.
+
 This project is designed for XAMPP-style hosting at `/dash` and stores uploaded files under `uploads/clients/...`.
 
 ## Table of Contents
@@ -270,6 +272,7 @@ Then set/reset password using:
 - Can upload only to Stage 1.
 - Can download files when available and permitted by stage rules.
 - Sees only their own periods on dashboard.
+- Can upload documents to the Documents area (the only role that can).
 
 ## Stage/Status Rules
 
@@ -302,52 +305,68 @@ Then set/reset password using:
 
 ## Documents
 
-The Documents screen is a **separate, client-level file storage system** independent of stage uploads. It allows uploading and downloading general documents (e.g. engagement letters, tax returns) associated with a client without tying them to a specific period or stage.
+The Documents screen is a **separate, client-level file storage system** independent of stage uploads. Documents are organised by upload date. Only clients can upload; admins and processors can view and download.
 
 ### Access
 
 - Accessible from the sidebar (all logged-in users).
 - Admins see all clients. Processors see only their assigned clients. Clients see only their own.
 
-### UI
+### Upload (clients only)
 
-- One row per client showing the client name, a status LED, upload icon, and download icon.
-- **Green LED**: documents exist (clickable to view the file list).
-- **Grey LED**: no documents uploaded.
-
-### Upload
-
-- Click the upload icon for a client.
-- Supports multiple files in a single upload with a real-time progress bar.
+- Upload is available **only to client-role users**. Admin and processor users do not have an upload button.
+- The client view shows one row per upload date. If today has no files yet, a placeholder row appears with an upload icon.
+- Click the upload icon, confirm the prompt, and select one or more files.
+- If today already has files, the upload icon appears on today's existing row to add more files.
+- Supports multiple files per upload with a real-time progress bar.
 - Duplicate filenames are auto-renamed (e.g. `file_1.txt`, `file_2.txt`).
-- Files are stored at `uploads/clients/{clientId}/documents/`.
+- Files are stored at `uploads/clients/{clientId}/documents/{YYYY-MM-DD}/`.
 - Metadata (original filename, uploader, timestamp) is stored in the `client_documents` table.
 
-### View
+### Multi-entity selector (clients with multiple linked entities)
 
-- Click the green LED to open a popup listing all documents for that client.
-- Columns: file name, upload date/time, and uploader name.
+- If a client login is associated with more than one entity, entity selector buttons appear at the top.
+- Clicking a button switches the document view to that entity. The active entity is highlighted.
 
-### Download
+### Client view
 
-- Click the download icon to open a selection modal.
-- Select individual files or use "Select All".
-- Single file: direct download. Multiple files: zipped download.
-- Downloads use secure, time-limited tokens (2-minute expiry, single use).
+- Table shows one row per upload date with the date and file count.
+- Click the **folder icon** on a date row to open a popup listing all files for that date.
+- Each file shows: filename, upload time, uploader, and a View button for previewable types.
+- **Download All** button in the popup downloads all files for that date (single file direct; multiple as ZIP).
+- Once downloaded, files are marked with a green ✓ badge in the file list.
+
+### Admin / Processor view
+
+- Table shows one row per client with columns:
+  - **Total Files** — total documents across all dates
+  - **Not Downloaded** — count of files where `downloaded_at IS NULL` (never downloaded)
+  - **Actions** — folder icon to browse documents
+- Click the folder icon to open a date-list modal, then drill into a date to see individual files.
+- Each file shows a green ✓ badge if it has been downloaded.
+- **Download Date Files** button downloads all files for the selected date.
+
+### Download tracking
+
+- The `client_documents` table has a `downloaded_at DATETIME NULL` column.
+- When files are streamed via `doc_download_stream`, `downloaded_at` is set to `NOW()` for all included files (only if not already set — first download only).
+- The **Not Downloaded** count is derived from `downloaded_at IS NULL`.
 
 ### Routes
 
 - `?action=documents` — documents page
 - `POST ?action=doc_upload` — upload files
-- `?action=doc_files` — list files (AJAX)
-- `POST ?action=doc_download` — request download token
-- `?action=doc_download_stream` — stream download
+- `?action=doc_date_files` — list files for a client + date (AJAX)
+- `?action=doc_dates` — list dates for a client (AJAX, admin modal)
+- `POST ?action=doc_download` — request download token (stores file IDs in session)
+- `?action=doc_download_stream` — stream download and mark files as downloaded
+- `?action=doc_preview` — inline file preview
 
 All handled by `controllers/DocumentController.php`.
 
-### Downstream reset behavior
+### Downstream reset behavior (stage uploads)
 
-On upload, downstream stages are reset:
+On stage upload, downstream stages are reset:
 
 - Upload Stage 1 resets Stage 2, 3, 4 to grey and clears their files.
 - Upload Stage 2 resets Stage 3, 4.
@@ -379,7 +398,7 @@ Structure:
 - Stage 2: `stage2/`
 - Stage 3: `stage3/`
 - Stage 4: `stage4/`
-- Client documents: `documents/`
+- Client documents: `documents/{YYYY-MM-DD}/`
 
 Database file records are stored in `files` table (stage files) and `client_documents` table (documents) with original filename + relative path.
 

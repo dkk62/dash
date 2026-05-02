@@ -1,12 +1,47 @@
 <?php
 $pageTitle = 'Dashboard';
 $role = currentRole();
+$dashboardClients = [];
+if ($role === 'client') {
+    $allowedCids = !empty($_SESSION['client_ids'])
+        ? array_map('intval', (array) $_SESSION['client_ids'])
+        : (!empty($_SESSION['client_id']) ? [(int) $_SESSION['client_id']] : []);
+    foreach ($allowedCids as $cid) {
+        $cObj = Client::find($cid);
+        if ($cObj && !(int)($cObj['is_archived'] ?? 0)) {
+            $dashboardClients[] = ['id' => $cid, 'name' => $cObj['name']];
+        }
+    }
+}
 ob_start();
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
     <h4 class="mb-0"><i class="bi bi-grid-3x3"></i> Work Progress Dashboard - <?= date('m/d/Y') ?></h4>
     <div class="d-flex gap-2 flex-wrap">
+    <?php if ($role === 'client' && !empty($dashboardClients)): ?>
+      <?php foreach ($dashboardClients as $dashboardClient): ?>
+      <form method="POST"
+          action="<?= e(appUrl('?action=doc_upload')) ?>"
+          enctype="multipart/form-data"
+          class="d-inline-flex flex-column align-items-start doc-upload-form"
+          data-client-name="<?= e($dashboardClient['name']) ?>">
+        <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+        <input type="hidden" name="client_id" value="<?= (int) $dashboardClient['id'] ?>">
+        <input type="file" name="files[]" class="d-none doc-file-input" multiple>
+        <button type="button" class="btn btn-sm btn-outline-primary doc-upload-btn" title="Upload documents">
+          <i class="bi bi-cloud-arrow-up"></i>
+          <?= count($dashboardClients) === 1 ? 'Upload Documents' : 'Upload ' . e($dashboardClient['name']) ?>
+        </button>
+        <div class="upload-progress mt-1" hidden>
+          <div class="upload-progress-label">Uploading... <span class="upload-progress-percent">0%</span></div>
+          <div class="progress upload-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="progress-bar upload-progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+      </form>
+      <?php endforeach; ?>
+    <?php endif; ?>
         <?php if ((hasRole(['admin']) || hasReminderPermission()) && !empty($reminderTargets)): ?>
         <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#reminderModal">
             <i class="bi bi-bell"></i> Send Reminder

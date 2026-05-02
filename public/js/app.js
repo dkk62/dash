@@ -50,11 +50,18 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    function findUploadButton(form) {
+        return form.querySelector('.upload-btn, .doc-upload-btn');
+    }
+
     function showProgress(form, fileCount) {
         form.classList.add('is-uploading');
 
-        var button = form.querySelector('.upload-btn');
+        var button = findUploadButton(form);
         if (button) {
+            if (!button.hasAttribute('data-original-title')) {
+                button.setAttribute('data-original-title', button.title);
+            }
             button.disabled = true;
             button.title = fileCount > 1 ? ('Uploading ' + fileCount + ' files...') : 'Uploading 1 file...';
         }
@@ -85,10 +92,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function resetUploadingState(form) {
         form.classList.remove('is-uploading');
-        var button = form.querySelector('.upload-btn');
+        var button = findUploadButton(form);
         if (button) {
             button.disabled = false;
-            button.title = 'Upload';
+            button.title = button.getAttribute('data-original-title') || 'Upload';
         }
     }
 
@@ -871,7 +878,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // ---- Document Upload (Documents page) ----
+    // ---- Document Upload ----
     document.querySelectorAll('.doc-upload-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var form = this.closest('.doc-upload-form');
@@ -1147,6 +1154,244 @@ document.addEventListener('DOMContentLoaded', function () {
                 btn.innerHTML = '<i class="bi bi-download"></i> Download Selected';
             });
             xhr.send(formData);
+        });
+    }
+
+    // ---- Shared document download helper ----
+    function triggerDocDownload(clientId, fileIds, btn) {
+        var origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Preparing...';
+        var fd = new FormData();
+        fd.append('csrf_token', csrfToken);
+        fd.append('client_id', clientId);
+        fileIds.forEach(function (id) { fd.append('file_ids[]', id); });
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', window.location.href.split('?')[0] + '?action=doc_download', true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.responseType = 'json';
+        xhr.addEventListener('load', function () {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            if (xhr.status >= 200 && xhr.status < 300 && xhr.response && xhr.response.token) {
+                window.location.href = window.location.href.split('?')[0]
+                    + '?action=doc_download_stream&token=' + encodeURIComponent(xhr.response.token);
+            } else {
+                alert((xhr.response && xhr.response.message) ? xhr.response.message : 'Download failed.');
+            }
+        });
+        xhr.addEventListener('error', function () {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            alert('Network error. Please try again.');
+        });
+        xhr.send(fd);
+    }
+
+    // ---- Date Files Modal (client: view files for a date) ----
+    var docDateFilesModal = document.getElementById('docDateFilesModal');
+    if (docDateFilesModal) {
+        var bsDocDateFilesModal = new bootstrap.Modal(docDateFilesModal);
+        var _ddClientId = '', _ddFileIds = [];
+
+        function ddEsc(str) {
+            var d = document.createElement('div');
+            d.appendChild(document.createTextNode(str || ''));
+            return d.innerHTML;
+        }
+
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.doc-date-view-btn');
+            if (!btn) return;
+            _ddClientId = btn.getAttribute('data-client-id');
+            var date      = btn.getAttribute('data-date');
+            var dateLabel = btn.getAttribute('data-date-label') || date;
+            _ddFileIds = [];
+            document.getElementById('docDateMeta').innerHTML = '<strong>' + ddEsc(dateLabel) + '</strong>';
+            document.getElementById('docDateLoading').style.display = '';
+            document.getElementById('docDateEmpty').style.display = 'none';
+            document.getElementById('docDateTableWrap').style.display = 'none';
+            document.getElementById('docDateBody').innerHTML = '';
+            document.getElementById('docDateDownloadBtn').style.display = 'none';
+            bsDocDateFilesModal.show();
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', window.location.href.split('?')[0]
+                + '?action=doc_date_files&client_id=' + encodeURIComponent(_ddClientId)
+                + '&date=' + encodeURIComponent(date), true);
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                document.getElementById('docDateLoading').style.display = 'none';
+                var files = (xhr.response && xhr.response.files) ? xhr.response.files : [];
+                if (files.length === 0) { document.getElementById('docDateEmpty').style.display = ''; return; }
+                _ddFileIds = files.map(function (f) { return f.id; });
+                var html = '';
+                files.forEach(function (f, i) {
+                    var dt = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')) : null;
+                    var tStr = dt ? dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
+                    var vBtn = '';
+                    if (isPreviewable(f.original_filename) && f.id) {
+                        var pu = window.location.href.split('?')[0] + '?action=doc_preview&doc_id=' + encodeURIComponent(f.id);
+                        vBtn = isDownloadOnly(f.original_filename)
+                            ? '<a href="' + ddEsc(pu) + '" download class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem;"><i class="bi bi-download"></i></a>'
+                            : '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + ddEsc(pu) + '" data-preview-name="' + ddEsc(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                    }
+                    var dlBadge = f.downloaded_at
+                        ? '<span class="badge bg-success ms-1" title="Downloaded"><i class="bi bi-check-lg"></i></span>'
+                        : '';
+                    html += '<tr><td>' + (i + 1) + '</td><td class="text-break">' + ddEsc(f.original_filename) + dlBadge + '</td>'
+                        + '<td class="text-nowrap">' + tStr + '</td><td>' + ddEsc(f.uploaded_by_name || '') + '</td>'
+                        + '<td class="text-center">' + vBtn + '</td></tr>';
+                });
+                document.getElementById('docDateBody').innerHTML = html;
+                document.getElementById('docDateTableWrap').style.display = '';
+                document.getElementById('docDateDownloadBtn').style.display = '';
+            });
+            xhr.addEventListener('error', function () {
+                document.getElementById('docDateLoading').style.display = 'none';
+                document.getElementById('docDateEmpty').textContent = 'Failed to load files.';
+                document.getElementById('docDateEmpty').style.display = '';
+            });
+            xhr.send();
+        });
+
+        var docDateDlBtn = document.getElementById('docDateDownloadBtn');
+        if (docDateDlBtn) {
+            docDateDlBtn.addEventListener('click', function () {
+                if (_ddFileIds.length) triggerDocDownload(_ddClientId, _ddFileIds, this);
+            });
+        }
+    }
+
+    // ---- Admin Document Modal (date breakdown + file drill-down) ----
+    var adminDocModal = document.getElementById('adminDocModal');
+    if (adminDocModal) {
+        var bsAdminDocModal = new bootstrap.Modal(adminDocModal);
+        var _adClientId = '', _adFileIds = [];
+
+        function adEsc(str) {
+            var d = document.createElement('div');
+            d.appendChild(document.createTextNode(str || ''));
+            return d.innerHTML;
+        }
+
+        function adShowDatePanel() {
+            document.getElementById('adminDocDatePanel').style.display = '';
+            document.getElementById('adminDocFilePanel').style.display = 'none';
+            document.getElementById('adminDocDownloadDateBtn').style.display = 'none';
+        }
+
+        function adShowFilePanel() {
+            document.getElementById('adminDocDatePanel').style.display = 'none';
+            document.getElementById('adminDocFilePanel').style.display = '';
+        }
+
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.admin-doc-view-btn');
+            if (!btn) return;
+            _adClientId = btn.getAttribute('data-client-id');
+            var clientName = btn.getAttribute('data-client-name') || '';
+            document.getElementById('adminDocModalLabel').innerHTML =
+                '<i class="bi bi-folder2-open"></i> ' + adEsc(clientName) + ' \u2014 Documents';
+            document.getElementById('adminDocDateLoading').style.display = '';
+            document.getElementById('adminDocDateEmpty').style.display = 'none';
+            document.getElementById('adminDocDateTableWrap').style.display = 'none';
+            document.getElementById('adminDocDateBody').innerHTML = '';
+            adShowDatePanel();
+            bsAdminDocModal.show();
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', window.location.href.split('?')[0]
+                + '?action=doc_dates&client_id=' + encodeURIComponent(_adClientId), true);
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                document.getElementById('adminDocDateLoading').style.display = 'none';
+                var dates = (xhr.response && xhr.response.dates) ? xhr.response.dates : [];
+                if (dates.length === 0) { document.getElementById('adminDocDateEmpty').style.display = ''; return; }
+                var html = '';
+                dates.forEach(function (d) {
+                    var p = d.upload_date.split('-');
+                    var fmt = p[1] + '/' + p[2] + '/' + p[0];
+                    html += '<tr>'
+                        + '<td class="fw-semibold align-middle">' + adEsc(fmt) + '</td>'
+                        + '<td class="text-center align-middle"><span class="badge bg-secondary">' + d.file_count + '</span></td>'
+                        + '<td class="text-center align-middle">'
+                        +   '<button type="button" class="btn p-0 border-0 bg-transparent admin-doc-date-view-btn"'
+                        +   ' data-date="' + adEsc(d.upload_date) + '" data-date-label="' + adEsc(fmt) + '"'
+                        +   ' title="View files" style="color:#0d6efd;">'
+                        +   '<i class="bi bi-folder2-open" style="font-size:16px;"></i>'
+                        +   '</button>'
+                        + '</td></tr>';
+                });
+                document.getElementById('adminDocDateBody').innerHTML = html;
+                document.getElementById('adminDocDateTableWrap').style.display = '';
+            });
+            xhr.addEventListener('error', function () {
+                document.getElementById('adminDocDateLoading').style.display = 'none';
+                document.getElementById('adminDocDateEmpty').textContent = 'Failed to load.';
+                document.getElementById('adminDocDateEmpty').style.display = '';
+            });
+            xhr.send();
+        });
+
+        adminDocModal.addEventListener('click', function (e) {
+            var btn = e.target.closest('.admin-doc-date-view-btn');
+            if (!btn) return;
+            var date      = btn.getAttribute('data-date');
+            var dateLabel = btn.getAttribute('data-date-label') || date;
+            _adFileIds = [];
+            document.getElementById('adminDocFileMeta').textContent = dateLabel;
+            document.getElementById('adminDocFileLoading').style.display = '';
+            document.getElementById('adminDocFileEmpty').style.display = 'none';
+            document.getElementById('adminDocFileTableWrap').style.display = 'none';
+            document.getElementById('adminDocFileBody').innerHTML = '';
+            document.getElementById('adminDocDownloadDateBtn').style.display = 'none';
+            adShowFilePanel();
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', window.location.href.split('?')[0]
+                + '?action=doc_date_files&client_id=' + encodeURIComponent(_adClientId)
+                + '&date=' + encodeURIComponent(date), true);
+            xhr.responseType = 'json';
+            xhr.addEventListener('load', function () {
+                document.getElementById('adminDocFileLoading').style.display = 'none';
+                var files = (xhr.response && xhr.response.files) ? xhr.response.files : [];
+                if (files.length === 0) { document.getElementById('adminDocFileEmpty').style.display = ''; return; }
+                _adFileIds = files.map(function (f) { return f.id; });
+                var html = '';
+                files.forEach(function (f, i) {
+                    var dt = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')) : null;
+                    var tStr = dt ? dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
+                    var vBtn = '';
+                    if (isPreviewable(f.original_filename) && f.id) {
+                        var pu = window.location.href.split('?')[0] + '?action=doc_preview&doc_id=' + encodeURIComponent(f.id);
+                        vBtn = isDownloadOnly(f.original_filename)
+                            ? '<a href="' + adEsc(pu) + '" download class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem;"><i class="bi bi-download"></i></a>'
+                            : '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + adEsc(pu) + '" data-preview-name="' + adEsc(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                    }
+                    var dlBadge = f.downloaded_at
+                        ? '<span class="badge bg-success ms-1" title="Downloaded"><i class="bi bi-check-lg"></i></span>'
+                        : '';
+                    html += '<tr><td>' + (i + 1) + '</td><td class="text-break">' + adEsc(f.original_filename) + dlBadge + '</td>'
+                        + '<td class="text-nowrap">' + tStr + '</td><td>' + adEsc(f.uploaded_by_name || '') + '</td>'
+                        + '<td class="text-center">' + vBtn + '</td></tr>';
+                });
+                document.getElementById('adminDocFileBody').innerHTML = html;
+                document.getElementById('adminDocFileTableWrap').style.display = '';
+                document.getElementById('adminDocDownloadDateBtn').style.display = '';
+            });
+            xhr.addEventListener('error', function () {
+                document.getElementById('adminDocFileLoading').style.display = 'none';
+                document.getElementById('adminDocFileEmpty').textContent = 'Failed to load files.';
+                document.getElementById('adminDocFileEmpty').style.display = '';
+            });
+            xhr.send();
+        });
+
+        document.getElementById('adminDocBackBtn').addEventListener('click', adShowDatePanel);
+
+        document.getElementById('adminDocDownloadDateBtn').addEventListener('click', function () {
+            if (_adFileIds.length) triggerDocDownload(_adClientId, _adFileIds, this);
         });
     }
 

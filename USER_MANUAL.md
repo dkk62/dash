@@ -316,56 +316,69 @@ Click the **Export .xlsx** button at the top of the dashboard. This downloads a 
 
 ## Documents
 
-The Documents screen is a separate file storage area for each client. Use it for general documents (e.g. engagement letters, tax returns, reference files) that are not tied to a specific period or stage.
+The Documents screen is a separate file storage area for each client. Use it for general documents (e.g. engagement letters, tax returns, reference files) that are not tied to a specific period or stage. Files are organised by upload date.
 
 ### Accessing the Documents page
 
-Click **Documents** in the sidebar. The page shows one row per client.
+Click **Documents** in the sidebar.
 
 ### Who sees what
 
-| Role | Visible clients |
-|---|---|
-| Admin | All clients |
-| Processor 0 / Processor 1 | Only clients assigned to them |
-| Client | Only their own client(s) |
+| Role | Visible clients | Can upload |
+|---|---|---|
+| Admin | All clients | No |
+| Processor 0 / Processor 1 | Only clients assigned to them | No |
+| Client | Only their own client(s) | Yes |
 
-### Status LED
+### Multi-entity clients (client view)
 
-- **Green LED** — documents exist. Click the LED to view the file list.
-- **Grey LED** — no documents uploaded yet.
+If a client login is linked to more than one entity (company), a row of **entity selector buttons** appears at the top of the Documents page. Click any button to switch to that entity's documents. The currently selected entity is highlighted in dark.
 
-### Uploading documents
+### Client view — uploading documents
 
-1. Click the **upload icon** (cloud up) next to the client name.
-2. A confirmation prompt appears. Click OK.
-3. Select one or more files from your computer.
-4. A progress bar shows the upload percentage.
-5. On success, the page refreshes and the LED turns green.
+The client view shows a table of dates on which documents have been uploaded. Each row shows the date and how many files were uploaded that day.
+
+**Uploading for a new day:**
+1. If no files have been uploaded today yet, a placeholder row appears at the top with an **upload icon** (cloud up).
+2. Click the upload icon.
+3. A confirmation prompt appears. Click OK.
+4. Select one or more files. A progress bar shows the upload percentage.
+5. On success, a new date row appears for today with the file count.
+
+**Adding more files to today:**
+If today's row already exists, an **upload icon** appears on that row. Click it to add more files to today's date.
 
 **Notes:**
+- Only the **current day's row** has an upload button. Past dates cannot be uploaded to retroactively.
 - Multiple files can be uploaded at once.
 - If a file with the same name already exists, the new file is automatically renamed (e.g. `report_1.pdf`).
-- File size is limited by the server settings.
 
-### Viewing uploaded documents
+**Viewing files for a date:**
+Click the **folder icon** on any date row to open a popup listing all files uploaded on that date. Each file shows its filename, upload time, and who uploaded it. A **View** button (eye icon) opens a fullscreen preview for supported file types.
 
-Click the **green LED** to open a popup listing all documents for that client. The list shows:
+**Downloading files:**
+In the date files popup, click **Download All** to download all files for that date. A single file downloads directly; multiple files download as a ZIP archive. Once downloaded, each file is marked with a green ✓ badge in the file list.
+
+### Admin / Processor view — document overview
+
+The admin and processor view shows a table with one row per client:
 
 | Column | Description |
 |---|---|
-| # | Row number |
-| File Name | Original filename |
-| Uploaded | Date and time of upload |
-| By | Name of the user who uploaded the file |
+| Client | Client name |
+| Total Files | Total number of documents uploaded across all dates |
+| Not Downloaded | Number of files that have not yet been downloaded |
+| Actions | Folder icon to browse the client's documents |
 
-### Downloading documents
+**Not Downloaded** counts files that have never been downloaded via the Download button. Once a file is downloaded, it is no longer counted and a green ✓ badge appears next to its filename in the file list.
 
-1. Click the **download icon** (cloud down) next to the client name.
-2. A popup shows all documents with checkboxes. All files are selected by default.
-3. Use the **Select All** checkbox or select individual files.
-4. Click **Download Selected**.
-5. **Single file** — downloads directly. **Multiple files** — downloads as a ZIP archive.
+**Viewing a client's documents:**
+Click the **folder icon** in the Actions column. A modal opens showing a list of dates. Click a date's folder icon to drill into the individual files for that date. Each file shows its filename, upload time, and uploader. A green ✓ badge next to a filename means it has already been downloaded. A **View** button opens an in-browser preview for supported file types.
+
+**Downloading files:**
+In the file drill-down panel, click **Download Date Files** to download all files for that date. Single file downloads directly; multiple files download as a ZIP. Downloaded files are marked and removed from the "Not Downloaded" count.
+
+**Note:** Admin and processor users cannot upload to the Documents area. Only clients can upload their own documents.
 
 ---
 
