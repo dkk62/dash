@@ -12,6 +12,7 @@ function lockoutMessage(int $seconds): string {
 }
 
 if ($action === 'logout') {
+    $_SESSION = [];
     session_destroy();
     redirect('?action=login');
 }
@@ -45,6 +46,7 @@ if ($action === 'do_login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = User::findByEmail($email);
     if ($user && password_verify($password, $user['password_hash'])) {
         LoginAttempt::clear($email, $ipAddress);
+        session_regenerate_id(true);
         $_SESSION['user_id']    = $user['id'];
         $_SESSION['user_name']  = $user['name'];
         $_SESSION['user_email'] = $user['email'];
@@ -65,6 +67,7 @@ if ($action === 'do_login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (count($matchedClients) >= 1) {
         $primary = $matchedClients[0];
         LoginAttempt::clear($email, $ipAddress);
+        session_regenerate_id(true);
         $_SESSION['user_id']    = $primary['id'];
         $_SESSION['user_name']  = $primary['name'];
         $_SESSION['user_email'] = $primary['email'];

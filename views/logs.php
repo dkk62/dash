@@ -49,7 +49,7 @@ ob_start();
         <tr>
             <td><?= $log['id'] ?></td>
             <td><small><?= e($log['created_at']) ?></small></td>
-            <td><?= e($log['user_name']) ?></td>
+            <td><?= e($log['user_name'] ?? ($log['client_name'] ? 'Client: ' . $log['client_name'] : '—')) ?></td>
             <td>
                 <?php
                 $actionBadge = match($log['action']) {

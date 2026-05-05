@@ -18,6 +18,11 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('?action=clients');
     }
 
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        setFlash('danger', 'Please enter a valid email address.');
+        redirect('?action=clients');
+    }
+
     if (!in_array($cycleType, ['monthly', 'yearly'])) {
         $cycleType = 'monthly';
     }
@@ -31,8 +36,8 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             // Check if this email already has existing client records
             $isExistingEmail = Client::emailExists($email);
 
-            // Create new - set default password
-            $defaultPassword = 'Password#2026';
+            // Create new - set default password (override via CLIENT_DEFAULT_PASSWORD in .env)
+            $defaultPassword = defined('CLIENT_DEFAULT_PASSWORD') ? CLIENT_DEFAULT_PASSWORD : 'Password#2026';
             $newClientId = Client::create($name, $email, $phone, $cycleType, $defaultPassword, $processor0Id, $processor1Id);
 
             // Send full welcome email

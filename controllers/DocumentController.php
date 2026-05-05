@@ -151,21 +151,10 @@ if ($action === 'doc_upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $origName = $_FILES['files']['name'][$i];
         $tmpName  = $_FILES['files']['tmp_name'][$i];
 
-        // Sanitize base name and handle duplicate filenames with numeric suffix
-        $safeName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', basename($origName));
+        // Sanitize filename using the shared helper (adds timestamp+random prefix,
+        // matches the same safe sanitization used by StageController)
+        $safeName = sanitizeFilename($origName);
         $destPath = $dir . '/' . $safeName;
-
-        if (file_exists($destPath)) {
-            $pathInfo = pathinfo($safeName);
-            $base = $pathInfo['filename'];
-            $ext = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
-            $counter = 1;
-            do {
-                $safeName = $base . '_' . $counter . $ext;
-                $destPath = $dir . '/' . $safeName;
-                $counter++;
-            } while (file_exists($destPath));
-        }
 
         if (!move_uploaded_file($tmpName, $destPath)) {
             continue;

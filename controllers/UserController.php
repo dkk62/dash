@@ -14,6 +14,11 @@ if ($action === 'user_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('?action=users');
     }
 
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        setFlash('danger', 'Please enter a valid email address.');
+        redirect('?action=users');
+    }
+
     if (!in_array($role, ['processor0', 'processor1', 'admin'])) {
         $role = 'processor0';
     }

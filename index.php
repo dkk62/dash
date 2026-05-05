@@ -1,4 +1,12 @@
 <?php
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'domain'   => '',
+    'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'httponly' => true,
+    'samesite' => 'Strict',
+]);
 session_start();
 
 define('BASE_PATH', __DIR__);
@@ -9,6 +17,8 @@ require_once BASE_PATH . '/config/env.php';
 loadEnvFile(BASE_PATH . '/.env');
 
 define('APP_BASE_URL', envValue('APP_BASE_URL', '/dash'));
+define('APP_FULL_URL', envValue('APP_FULL_URL', ''));
+define('CLIENT_DEFAULT_PASSWORD', envValue('CLIENT_DEFAULT_PASSWORD', 'Password#2026'));
 
 require_once BASE_PATH . '/config/database.php';
 require_once BASE_PATH . '/config/mail.php';

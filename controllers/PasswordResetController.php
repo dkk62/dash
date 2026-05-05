@@ -45,7 +45,12 @@ if ($action === 'do_forgot_password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $resetUrl  = $scheme . '://' . $host . appUrl('?action=reset_password&token=' . urlencode($token));
+        // Use APP_FULL_URL from config if set (prevents Host header injection).
+        // Set APP_FULL_URL=https://yourdomain.com in .env to harden this.
+        $baseOrigin = (defined('APP_FULL_URL') && APP_FULL_URL !== '')
+            ? rtrim(APP_FULL_URL, '/')
+            : $scheme . '://' . $host;
+        $resetUrl  = $baseOrigin . appUrl('?action=reset_password&token=' . urlencode($token));
         $subject   = 'Password Reset - Work Progress System';
         $safeUrl   = htmlspecialchars($resetUrl, ENT_QUOTES, 'UTF-8');
         $safeName  = htmlspecialchars($account['name'], ENT_QUOTES, 'UTF-8');

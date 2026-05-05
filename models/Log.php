@@ -29,7 +29,7 @@ class LogModel {
         $db = getDB();
         $sql = "SELECT l.*, u.name AS user_name, p.period_label, c.name AS client_name
                 FROM logs l
-                JOIN users u ON u.id = l.user_id
+                LEFT JOIN users u ON u.id = l.user_id
                 LEFT JOIN periods p ON p.id = l.period_id
                 LEFT JOIN clients c ON c.id = p.client_id
                 WHERE 1=1";
