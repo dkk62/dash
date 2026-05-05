@@ -232,7 +232,7 @@ ob_start();
                             </form>
                             <div class="stage-date-label"><?= !empty($ss['last_upload_at']) ? date('m/d', strtotime($ss['last_upload_at'])) : '' ?></div>
                             </div>
-                        <?php elseif ($sn === 'stage3'): ?>
+                        <?php elseif ($sn === 'stage3' || $sn === 'stage4'): ?>
                             <div class="stage-icon-wrap">
                             <button type="button" class="btn p-0 border-0 bg-transparent upload-btn disabled-upload" disabled title="Upload not available">
                                 <img src="<?= e(assetUrl('img/upload.png')) ?>" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
