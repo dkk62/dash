@@ -1883,4 +1883,92 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     })();
+
+    // ---- Lock / Unlock (AJAX) ----
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.lock-action-btn');
+        if (!btn || btn.disabled) return;
+
+        var action   = btn.getAttribute('data-action');   // 'lock' or 'unlock'
+        var periodId = btn.getAttribute('data-period-id');
+        var csrf     = btn.getAttribute('data-csrf');
+
+        var confirmMsg = action === 'lock'
+            ? 'Lock this period? Uploads will be disabled.'
+            : 'Unlock this period? Uploads will be enabled again.';
+        if (!confirm(confirmMsg)) return;
+
+        btn.disabled = true;
+        var origHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        var url = window.location.href.split('?')[0] + '?action=' + action;
+        var fd  = new FormData();
+        fd.append('csrf_token', csrf);
+        fd.append('period_id', periodId);
+        fd.append('mode', action);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.responseType = 'json';
+
+        xhr.addEventListener('load', function () {
+            var resp = xhr.response;
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+
+            if (xhr.status >= 200 && xhr.status < 300 && resp && resp.success) {
+                var nowLocked = (action === 'lock');
+
+                // Toggle locked-row on all rows of this period
+                document.querySelectorAll('tr[data-period-id="' + periodId + '"]').forEach(function (row) {
+                    if (nowLocked) {
+                        row.classList.add('locked-row');
+                    } else {
+                        row.classList.remove('locked-row');
+                    }
+                    // Visually disable/enable upload buttons inside these rows
+                    row.querySelectorAll('.upload-form .upload-btn').forEach(function (ub) {
+                        if (nowLocked) {
+                            ub.classList.add('disabled-upload');
+                            ub.disabled = true;
+                        } else {
+                            ub.classList.remove('disabled-upload');
+                            ub.disabled = false;
+                        }
+                    });
+                });
+
+                // Swap buttons in the lock cell
+                var lockCell = btn.closest('[data-lock-cell]');
+                if (lockCell) {
+                    lockCell.querySelectorAll('.lock-action-btn').forEach(function (b) {
+                        var bAction = b.getAttribute('data-action');
+                        if (nowLocked) {
+                            b.classList.toggle('d-none', bAction === 'lock');
+                        } else {
+                            b.classList.toggle('d-none', bAction === 'unlock');
+                        }
+                    });
+                    var badge = lockCell.querySelector('[data-lock-badge]');
+                    if (badge) {
+                        badge.classList.toggle('d-none', !nowLocked);
+                    }
+                }
+            } else {
+                var msg = (resp && resp.message) ? resp.message : 'Action failed. Please try again.';
+                alert(msg);
+            }
+        });
+
+        xhr.addEventListener('error', function () {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            alert('Network error. Please try again.');
+        });
+
+        xhr.send(fd);
+    });
+
 });

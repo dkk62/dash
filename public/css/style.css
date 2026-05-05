@@ -247,6 +247,11 @@
     cursor: not-allowed;
 }
 
+.upload-btn.disabled-upload {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
 /* Locked row styling */
 .locked-row {
     opacity: 0.75;
@@ -254,6 +259,10 @@
 
 .locked-row .upload-btn {
     display: none !important;
+}
+
+.locked-row .upload-btn.disabled-upload {
+    display: inline-flex !important;
 }
 
 /* Upload button styling */

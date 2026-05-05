@@ -94,16 +94,13 @@ ob_start();
             $s1 = $s1rows[$idx] ?? null;
             $clientStartClass = ($idx === 0 && $isClientStart) ? 'client-start' : '';
         ?>
-        <tr class="<?= $groupClass ?> <?= $clientStartClass ?> <?= $locked ? 'locked-row' : '' ?>">
+        <tr class="<?= $groupClass ?> <?= $clientStartClass ?> <?= $locked ? 'locked-row' : '' ?>" data-period-id="<?= $pid ?>">
             <?php if ($idx === 0): ?>
             <td rowspan="<?= $groupRows ?>" class="fw-bold align-middle client-cell">
                 <?= e($period['client_name']) ?>
             </td>
             <td rowspan="<?= $groupRows ?>" class="align-middle period-cell">
                 <?= e($period['period_label']) ?>
-                <?php if ($locked): ?>
-                    <br><span class="badge bg-danger"><i class="bi bi-lock-fill"></i> Locked</span>
-                <?php endif; ?>
             </td>
             <?php endif; ?>
 
@@ -118,6 +115,7 @@ ob_start();
             <td class="text-center">
                 <?php if ($s1): ?>
                 <?php $s1IsAuto = (($s1['bank_feed_mode'] ?? 'manual') === 'automatic'); ?>
+                <?php $s1UploadLabel = $s1IsAuto ? 'auto' : (!empty($s1['last_upload_at']) ? date('m/d', strtotime($s1['last_upload_at'])) : ''); ?>
                 <div class="stage-actions">
                     <span class="led led-<?= e($s1['status']) ?>"
                           data-led
@@ -129,8 +127,8 @@ ob_start();
                           data-period-label="<?= e($period['period_label']) ?>"
                           data-account-name="<?= e($s1['account_name']) ?>"
                           title="<?= e(ucfirst($s1['status'])) ?>"></span>
+                    <div class="stage-icon-wrap">
                     <?php if (!$locked && hasRole(stageUploadRoles('stage1'))): ?>
-                        <div class="stage-icon-wrap">
                         <form method="POST" action="<?= e(appUrl('?action=upload')) ?>" enctype="multipart/form-data" class="d-inline upload-form" data-client-name="<?= e($period['client_name']) ?>">
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
                             <input type="hidden" name="period_id" value="<?= $pid ?>">
@@ -148,9 +146,14 @@ ob_start();
                                 </div>
                             </div>
                         </form>
-                        <div class="stage-date-label"><?= !empty($s1['last_upload_at']) ? date('m/d', strtotime($s1['last_upload_at'])) : '' ?></div>
-                        </div>
+                    <?php else: ?>
+                        <button type="button" class="btn p-0 border-0 bg-transparent upload-btn disabled-upload" disabled title="Upload not available">
+                            <img src="<?= e(assetUrl('img/upload.png')) ?>" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                            <i class="bi bi-cloud-arrow-up action-icon-fallback upload-icon-fallback"></i>
+                        </button>
                     <?php endif; ?>
+                    <div class="stage-date-label"><?= e($s1UploadLabel) ?></div>
+                    </div>
                     <div class="stage-icon-wrap">
                     <?php $s1HasFile = $data['s1Files'][$s1['account_id']] ?? false; ?>
                     <?php if ($s1HasFile && hasRole(stageDownloadRoles('stage1'))): ?>
@@ -229,6 +232,14 @@ ob_start();
                             </form>
                             <div class="stage-date-label"><?= !empty($ss['last_upload_at']) ? date('m/d', strtotime($ss['last_upload_at'])) : '' ?></div>
                             </div>
+                        <?php elseif ($sn === 'stage3'): ?>
+                            <div class="stage-icon-wrap">
+                            <button type="button" class="btn p-0 border-0 bg-transparent upload-btn disabled-upload" disabled title="Upload not available">
+                                <img src="<?= e(assetUrl('img/upload.png')) ?>" alt="Upload" class="action-icon upload-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                                <i class="bi bi-cloud-arrow-up action-icon-fallback upload-icon-fallback" style="display:none;"></i>
+                            </button>
+                            <div class="stage-date-label"><?= !empty($ss['last_upload_at']) ? date('m/d', strtotime($ss['last_upload_at'])) : '' ?></div>
+                            </div>
                         <?php endif; ?>
                         <div class="stage-icon-wrap">
                         <?php if ($hasFile && hasRole(stageDownloadRoles($sn))): ?>
@@ -283,31 +294,28 @@ ob_start();
                 </td>
                 <?php endif; ?>
 
-                <td rowspan="<?= $groupRows ?>" class="text-center align-middle">
-                    <?php if ($locked): ?>
-                        <?php if (hasRole(['admin'])): ?>
-                            <form method="POST" action="<?= e(appUrl('?action=unlock')) ?>" class="d-inline">
-                                <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
-                                <input type="hidden" name="period_id" value="<?= $pid ?>">
-                                <input type="hidden" name="mode" value="unlock">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Unlock Period"
-                                        onclick="return confirm('Unlock this period? Uploads will be enabled again.')">
-                                    <i class="bi bi-unlock"></i> Unlock
-                                </button>
-                            </form>
-                        <?php else: ?>
-                            <span class="badge bg-danger" title="Locked"><i class="bi bi-lock-fill"></i></span>
-                        <?php endif; ?>
-                    <?php elseif ($data['showLock'] && hasRole(['admin'])): ?>
-                        <form method="POST" action="<?= e(appUrl('?action=lock')) ?>" class="d-inline">
-                            <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
-                            <input type="hidden" name="period_id" value="<?= $pid ?>">
-                            <input type="hidden" name="mode" value="lock">
-                            <button type="submit" class="btn btn-sm btn-danger" title="Lock Period"
-                                    onclick="return confirm('Lock this period? This cannot be undone. Uploads will be disabled.')">
-                                <i class="bi bi-lock"></i> Lock
-                            </button>
-                        </form>
+                <td rowspan="<?= $groupRows ?>" class="text-center align-middle" data-lock-cell>
+                    <?php if (hasRole(['admin'])): ?>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger lock-action-btn<?= !$locked ? ' d-none' : '' ?>"
+                                data-action="unlock"
+                                data-period-id="<?= $pid ?>"
+                                data-csrf="<?= e(csrfToken()) ?>"
+                                title="Unlock Period">
+                            <i class="bi bi-unlock"></i> Unlock
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-danger lock-action-btn<?= ($locked || !$data['showLock']) ? ' d-none' : '' ?>"
+                                data-action="lock"
+                                data-period-id="<?= $pid ?>"
+                                data-csrf="<?= e(csrfToken()) ?>"
+                                title="Lock Period">
+                            <i class="bi bi-lock"></i> Lock
+                        </button>
+                    <?php else: ?>
+                        <span class="badge bg-danger<?= !$locked ? ' d-none' : '' ?>" data-lock-badge title="Locked">
+                            <i class="bi bi-lock-fill"></i>
+                        </span>
                     <?php endif; ?>
                 </td>
             <?php endif; ?>
