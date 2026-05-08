@@ -101,7 +101,8 @@ class ClientDocument {
     public static function forClientOnDate(int $clientId, string $date): array {
         $db = getDB();
         $stmt = $db->prepare(
-            "SELECT cd.id, cd.original_filename, cd.uploaded_at, cd.downloaded_at, cd.uploaded_by_type,
+            "SELECT cd.id, cd.original_filename, cd.uploaded_at, cd.downloaded_at,
+                    cd.uploaded_by, cd.uploaded_by_type,
                     COALESCE(u.name, c.name) AS uploaded_by_name
              FROM client_documents cd
              LEFT JOIN users u ON u.id = cd.uploaded_by AND cd.uploaded_by_type = 'user'
@@ -144,5 +145,11 @@ class ClientDocument {
             "UPDATE client_documents SET downloaded_at = NOW() WHERE id IN ($placeholders) AND downloaded_at IS NULL"
         );
         $stmt->execute(array_values($ids));
+    }
+
+    public static function delete(int $id): bool {
+        $db = getDB();
+        $stmt = $db->prepare("DELETE FROM client_documents WHERE id = ?");
+        return $stmt->execute([$id]);
     }
 }

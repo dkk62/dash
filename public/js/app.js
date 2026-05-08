@@ -1226,22 +1226,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (files.length === 0) { document.getElementById('docDateEmpty').style.display = ''; return; }
                 _ddFileIds = files.map(function (f) { return f.id; });
                 var html = '';
+                var _ddBaseUrl = window.location.href.split('?')[0];
+                var ddCurUserId = (document.querySelector('meta[name="user-id"]') || {}).content || '';
+                var ddCurUserType = (document.querySelector('meta[name="user-type"]') || {}).content || '';
                 files.forEach(function (f, i) {
                     var dt = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')) : null;
                     var tStr = dt ? dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
+                    var dlUrl = _ddBaseUrl + '?action=doc_download_single&doc_id=' + encodeURIComponent(f.id);
+                    var dlBtn = f.id ? '<a href="' + ddEsc(dlUrl) + '" class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem;" title="Download"><i class="bi bi-download"></i></a>' : '';
                     var vBtn = '';
-                    if (isPreviewable(f.original_filename) && f.id) {
-                        var pu = window.location.href.split('?')[0] + '?action=doc_preview&doc_id=' + encodeURIComponent(f.id);
-                        vBtn = isDownloadOnly(f.original_filename)
-                            ? '<a href="' + ddEsc(pu) + '" download class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem;"><i class="bi bi-download"></i></a>'
-                            : '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + ddEsc(pu) + '" data-preview-name="' + ddEsc(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                    if (isPreviewable(f.original_filename) && f.id && !isDownloadOnly(f.original_filename)) {
+                        var pu = _ddBaseUrl + '?action=doc_preview&doc_id=' + encodeURIComponent(f.id);
+                        vBtn = '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + ddEsc(pu) + '" data-preview-name="' + ddEsc(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                    }
+                    var delBtn = '';
+                    if (f.id && ddCurUserId && String(f.uploaded_by) === String(ddCurUserId) && String(f.uploaded_by_type) === String(ddCurUserType)) {
+                        delBtn = '<button type="button" class="btn btn-outline-danger btn-sm py-0 px-1 doc-delete-btn" style="font-size:0.7rem;" data-doc-id="' + ddEsc(String(f.id)) + '" data-doc-name="' + ddEsc(f.original_filename) + '" title="Delete"><i class="bi bi-trash"></i></button>';
                     }
                     var dlBadge = f.downloaded_at
                         ? '<span class="badge bg-success ms-1" title="Downloaded"><i class="bi bi-check-lg"></i></span>'
                         : '';
+                    var actCell = [vBtn, dlBtn, delBtn].filter(Boolean).join(' ');
                     html += '<tr><td>' + (i + 1) + '</td><td class="text-break">' + ddEsc(f.original_filename) + dlBadge + '</td>'
                         + '<td class="text-nowrap">' + tStr + '</td><td>' + ddEsc(f.uploaded_by_name || '') + '</td>'
-                        + '<td class="text-center">' + vBtn + '</td></tr>';
+                        + '<td class="text-center text-nowrap">' + actCell + '</td></tr>';
                 });
                 document.getElementById('docDateBody').innerHTML = html;
                 document.getElementById('docDateTableWrap').style.display = '';
@@ -1359,22 +1367,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (files.length === 0) { document.getElementById('adminDocFileEmpty').style.display = ''; return; }
                 _adFileIds = files.map(function (f) { return f.id; });
                 var html = '';
+                var _adBaseUrl = window.location.href.split('?')[0];
+                var adCurUserId = (document.querySelector('meta[name="user-id"]') || {}).content || '';
+                var adCurUserType = (document.querySelector('meta[name="user-type"]') || {}).content || '';
                 files.forEach(function (f, i) {
                     var dt = f.uploaded_at ? new Date(f.uploaded_at.replace(/-/g, '/')) : null;
                     var tStr = dt ? dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
+                    var dlUrl = _adBaseUrl + '?action=doc_download_single&doc_id=' + encodeURIComponent(f.id);
+                    var dlBtn = f.id ? '<a href="' + adEsc(dlUrl) + '" class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem;" title="Download"><i class="bi bi-download"></i></a>' : '';
                     var vBtn = '';
-                    if (isPreviewable(f.original_filename) && f.id) {
-                        var pu = window.location.href.split('?')[0] + '?action=doc_preview&doc_id=' + encodeURIComponent(f.id);
-                        vBtn = isDownloadOnly(f.original_filename)
-                            ? '<a href="' + adEsc(pu) + '" download class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:0.7rem;"><i class="bi bi-download"></i></a>'
-                            : '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + adEsc(pu) + '" data-preview-name="' + adEsc(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                    if (isPreviewable(f.original_filename) && f.id && !isDownloadOnly(f.original_filename)) {
+                        var pu = _adBaseUrl + '?action=doc_preview&doc_id=' + encodeURIComponent(f.id);
+                        vBtn = '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-1" style="font-size:0.7rem;" data-preview-url="' + adEsc(pu) + '" data-preview-name="' + adEsc(f.original_filename) + '"><i class="bi bi-eye"></i></button>';
+                    }
+                    var delBtn = '';
+                    if (f.id && adCurUserId && String(f.uploaded_by) === String(adCurUserId) && String(f.uploaded_by_type) === String(adCurUserType)) {
+                        delBtn = '<button type="button" class="btn btn-outline-danger btn-sm py-0 px-1 doc-delete-btn" style="font-size:0.7rem;" data-doc-id="' + adEsc(String(f.id)) + '" data-doc-name="' + adEsc(f.original_filename) + '" title="Delete"><i class="bi bi-trash"></i></button>';
                     }
                     var dlBadge = f.downloaded_at
                         ? '<span class="badge bg-success ms-1" title="Downloaded"><i class="bi bi-check-lg"></i></span>'
                         : '';
+                    var actCell = [vBtn, dlBtn, delBtn].filter(Boolean).join(' ');
                     html += '<tr><td>' + (i + 1) + '</td><td class="text-break">' + adEsc(f.original_filename) + dlBadge + '</td>'
                         + '<td class="text-nowrap">' + tStr + '</td><td>' + adEsc(f.uploaded_by_name || '') + '</td>'
-                        + '<td class="text-center">' + vBtn + '</td></tr>';
+                        + '<td class="text-center text-nowrap">' + actCell + '</td></tr>';
                 });
                 document.getElementById('adminDocFileBody').innerHTML = html;
                 document.getElementById('adminDocFileTableWrap').style.display = '';
@@ -1394,6 +1410,49 @@ document.addEventListener('DOMContentLoaded', function () {
             if (_adFileIds.length) triggerDocDownload(_adClientId, _adFileIds, this);
         });
     }
+
+    // ---- Document File Delete (uploader only) ----
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.doc-delete-btn');
+        if (!btn) return;
+        e.preventDefault();
+        var docId = btn.getAttribute('data-doc-id');
+        var docName = btn.getAttribute('data-doc-name') || 'this file';
+        if (!docId) return;
+        if (!confirm('Delete "' + docName + '"? This action cannot be undone.')) return;
+
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+        btn.disabled = true;
+        var originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+        var fd = new FormData();
+        fd.append('csrf_token', csrfToken);
+        fd.append('doc_id', docId);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', window.location.href.split('?')[0] + '?action=doc_delete', true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.responseType = 'json';
+        xhr.addEventListener('load', function () {
+            var resp = xhr.response;
+            if (xhr.status >= 200 && xhr.status < 300 && resp && resp.success) {
+                window.location.reload();
+                return;
+            }
+            alert((resp && resp.message) ? resp.message : 'Failed to delete file.');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+        xhr.addEventListener('error', function () {
+            alert('Network error while deleting file.');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+        xhr.send(fd);
+    });
 
     // ========================================================================
     // Onboarding form: repeatable rows (add/remove)

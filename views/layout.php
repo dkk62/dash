@@ -6,6 +6,8 @@
     <meta name="robots" content="noindex, nofollow">
     <meta name="csrf-token" content="<?= e(csrfToken()) ?>">
     <meta name="user-role" content="<?= e(currentRole()) ?>">
+    <meta name="user-id" content="<?= e((string) ($_SESSION['user_id'] ?? '')) ?>">
+    <meta name="user-type" content="<?= e(($_SESSION['user_type'] ?? 'user') === 'client' ? 'client' : 'user') ?>">
     <title><?= e($pageTitle ?? 'Work Progress System') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -37,6 +39,8 @@
                     </a>
                 </li>
                 <?php endif; ?>
+                <?php endif; ?>
+                <?php if ($onbDone || currentRole() === 'client'): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(appUrl('?action=documents')) ?>">
                         <i class="bi bi-file-earmark-text"></i> Documents

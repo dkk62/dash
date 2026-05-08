@@ -126,6 +126,14 @@ if ($action === 'doc_upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Processor ownership check
+    if (in_array(currentRole(), ['processor0', 'processor1'])) {
+        $assignedClientIds = Client::getClientIdsForUser((int) $_SESSION['user_id']);
+        if (!in_array($clientId, $assignedClientIds, true)) {
+            $fail('This client is not assigned to your account.', 403);
+        }
+    }
+
     if (!isset($_FILES['files']) || !is_array($_FILES['files']['name'])) {
         $fail('Please select at least one file.');
     }
@@ -350,6 +358,110 @@ if ($action === 'doc_download_stream') {
     header('Content-Length: ' . filesize($zipPath));
     readfile($zipPath);
     @unlink($zipPath);
+    exit;
+}
+
+// ---- SINGLE FILE DOWNLOAD (GET by doc_id) ----
+if ($action === 'doc_download_single') {
+    $docId = (int) ($_GET['doc_id'] ?? 0);
+    if ($docId <= 0) {
+        http_response_code(400);
+        echo 'Invalid document ID.';
+        exit;
+    }
+
+    $docRecord = ClientDocument::findById($docId);
+    if (!$docRecord) {
+        http_response_code(404);
+        echo 'Document not found.';
+        exit;
+    }
+
+    $clientId = (int) $docRecord['client_id'];
+
+    // Client ownership check
+    if (currentRole() === 'client') {
+        $allowedClientIds = array_map('intval', $_SESSION['client_ids'] ?? []);
+        if (!in_array($clientId, $allowedClientIds, true)) {
+            http_response_code(403);
+            echo 'Access denied.';
+            exit;
+        }
+    }
+
+    // Processor ownership check
+    if (in_array(currentRole(), ['processor0', 'processor1'])) {
+        $assignedClientIds = Client::getClientIdsForUser((int) $_SESSION['user_id']);
+        if (!in_array($clientId, $assignedClientIds, true)) {
+            http_response_code(403);
+            echo 'Access denied.';
+            exit;
+        }
+    }
+
+    $fullPath = UPLOAD_PATH . '/' . $docRecord['file_path'];
+    if (!file_exists($fullPath) || !is_file($fullPath)) {
+        http_response_code(404);
+        echo 'File not found on disk.';
+        exit;
+    }
+
+    // Mark as downloaded (consistent with bulk download behavior)
+    ClientDocument::markDownloaded([(int) $docRecord['id']]);
+
+    $fileName = $docRecord['original_filename'];
+    header('Content-Type: application/octet-stream');
+    header('Content-Disposition: attachment; filename="' . $fileName . '"');
+    header('Content-Length: ' . filesize($fullPath));
+    readfile($fullPath);
+    exit;
+}
+
+// ---- DELETE DOCUMENT (uploader only) ----
+if ($action === 'doc_delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+
+    if (!verifyCsrf()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
+        exit;
+    }
+
+    $docId = (int) ($_POST['doc_id'] ?? 0);
+    if ($docId <= 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid document ID.']);
+        exit;
+    }
+
+    $docRecord = ClientDocument::findById($docId);
+    if (!$docRecord) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Document not found.']);
+        exit;
+    }
+
+    // Only the original uploader (matching id + type) can delete the file.
+    $sessionId   = (int) ($_SESSION['user_id'] ?? 0);
+    $sessionType = (($_SESSION['user_type'] ?? 'user') === 'client') ? 'client' : 'user';
+    $isUploader  = ((int) $docRecord['uploaded_by'] === $sessionId)
+                && ((string) $docRecord['uploaded_by_type'] === $sessionType);
+
+    if (!$isUploader) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Only the uploader can delete this file.']);
+        exit;
+    }
+
+    // Remove the file from disk (best-effort)
+    $fullPath = UPLOAD_PATH . '/' . $docRecord['file_path'];
+    if (file_exists($fullPath) && is_file($fullPath)) {
+        @unlink($fullPath);
+    }
+
+    ClientDocument::delete($docId);
+
+    echo json_encode(['success' => true, 'message' => 'File deleted successfully.']);
     exit;
 }
 

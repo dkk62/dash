@@ -173,6 +173,27 @@ ob_start();
                         </span>
                     <?php endif; ?>
                     </div>
+                    <div class="stage-icon-wrap">
+                        <form method="POST"
+                              action="<?= e(appUrl('?action=doc_upload')) ?>"
+                              enctype="multipart/form-data"
+                              class="d-inline doc-upload-form"
+                              data-client-name="<?= e($client['name']) ?>">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+                            <input type="hidden" name="client_id" value="<?= $cid ?>">
+                            <input type="file" name="files[]" class="d-none doc-file-input" multiple>
+                            <button type="button" class="btn p-0 border-0 bg-transparent doc-upload-btn"
+                                    title="Upload documents for <?= e($client['name']) ?>">
+                                <i class="bi bi-cloud-arrow-up action-icon-fallback upload-icon-fallback"></i>
+                            </button>
+                            <div class="upload-progress" hidden>
+                                <div class="upload-progress-label">Uploading... <span class="upload-progress-percent">0%</span></div>
+                                <div class="progress upload-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                    <div class="progress-bar upload-progress-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </td>
         </tr>
@@ -201,7 +222,7 @@ ob_start();
         <div class="table-responsive" id="docDateTableWrap" style="display:none;">
           <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem;">
             <thead class="table-light">
-              <tr><th>#</th><th>File Name</th><th>Time</th><th>By</th><th class="text-center">View</th></tr>
+              <tr><th>#</th><th>File Name</th><th>Time</th><th>By</th><th class="text-center">Actions</th></tr>
             </thead>
             <tbody id="docDateBody"></tbody>
           </table>
@@ -257,7 +278,7 @@ ob_start();
           <div class="table-responsive" id="adminDocFileTableWrap" style="display:none;">
             <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem;">
               <thead class="table-light">
-                <tr><th>#</th><th>File Name</th><th>Time</th><th>By</th><th class="text-center">View</th></tr>
+                <tr><th>#</th><th>File Name</th><th>Time</th><th>By</th><th class="text-center">Actions</th></tr>
               </thead>
               <tbody id="adminDocFileBody"></tbody>
             </table>

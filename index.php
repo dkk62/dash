@@ -42,7 +42,7 @@ if (!in_array($action, $publicActions) && !isLoggedIn()) {
 }
 
 // Force clients to complete onboarding before accessing other pages
-$onboardingActions = ['onboarding', 'onboarding_save_section', 'onboarding_delete_file', 'onboarding_staged_files', 'onboarding_submit', 'logout'];
+$onboardingActions = ['onboarding', 'onboarding_save_section', 'onboarding_delete_file', 'onboarding_staged_files', 'onboarding_submit', 'logout', 'documents', 'doc_upload', 'doc_files', 'doc_download', 'doc_download_stream', 'doc_download_single', 'doc_preview', 'doc_dates', 'doc_date_files', 'doc_delete'];
 if (isLoggedIn() && currentRole() === 'client' && !in_array($action, array_merge($publicActions, $onboardingActions)) && !isClientOnboardingComplete()) {
     redirect('?action=onboarding');
 }
@@ -179,6 +179,8 @@ switch ($action) {
     case 'doc_files':
     case 'doc_download':
     case 'doc_download_stream':
+    case 'doc_download_single':
+    case 'doc_delete':
     case 'doc_preview':
     case 'doc_dates':
     case 'doc_date_files':
