@@ -5,7 +5,7 @@ if ($action === 'clear_logs') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         redirect('?action=logs');
     }
-    verifyCsrf();
+    requireCsrf();
     LogModel::clearAll();
     setFlash('success', 'All logs have been cleared.');
     redirect('?action=logs');

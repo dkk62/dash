@@ -41,6 +41,10 @@ if ($action === 'user_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             setFlash('danger', 'Password is required when creating a new user.');
             redirect('?action=users');
         }
+        if (User::findByEmail($email)) {
+            setFlash('danger', 'A user with this email address already exists.');
+            redirect('?action=users');
+        }
         User::create($name, $email, $password, $role);
         setFlash('success', 'User created.');
     }

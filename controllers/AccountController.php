@@ -23,8 +23,8 @@ if ($action === 'account_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('?action=accounts&client_id=' . $clientId);
     } else {
         Account::create($clientId, $name, $bankFeedMode);
-        setFlash('success', 'Account created. Now add periods for this client.');
-        redirect('?action=periods&client_id=' . $clientId);
+        setFlash('success', 'Account created.');
+        redirect('?action=accounts&client_id=' . $clientId);
     }
 }
 

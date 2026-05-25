@@ -40,8 +40,12 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $defaultPassword = defined('CLIENT_DEFAULT_PASSWORD') ? CLIENT_DEFAULT_PASSWORD : 'Password#2026';
             $newClientId = Client::create($name, $email, $phone, $cycleType, $defaultPassword, $processor0Id, $processor1Id);
 
-            // Send full welcome email
-            sendClientWelcomeEmail($name, $email);
+            // Send appropriate welcome email based on whether the email already exists
+            if ($isExistingEmail) {
+                sendNewEntityEmail($name, $email);
+            } else {
+                sendClientWelcomeEmail($name, $email);
+            }
 
             setFlash('success', 'Client created and welcome email sent.');
             redirect('?action=clients');
@@ -56,7 +60,12 @@ if ($action === 'client_save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
  * Send welcome email to a newly created client.
  */
 function sendClientWelcomeEmail(string $name, string $email): void {
-    $baseUrl  = 'https://dashboard.taxcheapo.com';
+    $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $baseUrl = (defined('APP_FULL_URL') && APP_FULL_URL !== '')
+        ? rtrim(APP_FULL_URL, '/')
+        : $scheme . '://' . $host;
+    $baseUrl .= basePath();
     $loginUrl = $baseUrl . '/?action=login';
     $resetUrl = $baseUrl . '/?action=forgot_password&email=' . urlencode($email);
 
@@ -117,7 +126,12 @@ function sendClientWelcomeEmail(string $name, string $email): void {
  * Send email when a new entity/organization is added for an existing client email.
  */
 function sendNewEntityEmail(string $entityName, string $email): void {
-    $baseUrl  = 'https://dashboard.taxcheapo.com';
+    $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $baseUrl = (defined('APP_FULL_URL') && APP_FULL_URL !== '')
+        ? rtrim(APP_FULL_URL, '/')
+        : $scheme . '://' . $host;
+    $baseUrl .= basePath();
     $loginUrl = $baseUrl . '/?action=login';
 
     $subject = 'New Organization Added - TaxCheapo Client Portal';

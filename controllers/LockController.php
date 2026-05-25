@@ -3,7 +3,7 @@ require_once BASE_PATH . '/models/Period.php';
 require_once BASE_PATH . '/models/Stage1Status.php';
 require_once BASE_PATH . '/models/StageStatus.php';
 
-$isAjax = (($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest');
+$isAjax = (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest');
 
 function lockJsonResponse(bool $success, string $message, int $status = 200): void {
     http_response_code($status);

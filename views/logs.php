@@ -19,7 +19,7 @@ ob_start();
     <div class="col-auto">
         <select name="filter_action" class="form-select form-select-sm">
             <option value="">All Actions</option>
-            <?php foreach (['upload','download','reupload','reminder_sent','period_locked','period_unlocked','login'] as $a): ?>
+            <?php foreach (['upload','download','reupload','reminder_sent','period_locked','period_unlocked','login','file_delete','upload_single'] as $a): ?>
                 <option value="<?= $a ?>" <?= ($actionFilter ?? '') === $a ? 'selected' : '' ?>><?= $a ?></option>
             <?php endforeach; ?>
         </select>
